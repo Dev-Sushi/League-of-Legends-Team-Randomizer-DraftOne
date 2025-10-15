@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="League of Legends Team Randomizer - Create balanced teams with role assignments for draft and custom games">
+    <meta name="author" content="Team Randomizer">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://ddragon.leagueoflegends.com http://ddragon.leagueoflegends.com https://*.dev-sushi.com http://*.dev-sushi.com; connect-src 'self' ws://localhost:* wss://localhost:* ws://*.dev-sushi.com wss://*.dev-sushi.com https://ddragon.leagueoflegends.com http://ddragon.leagueoflegends.com; font-src 'self';">
+    <title>League of Legends Team Randomizer</title>
+    <link rel="icon" type="image/png" href="images/roles/flavicon.png">
+    <link rel="stylesheet" href="css/styles.css?v=7">
+</head>
+<body>
+    <main id="app">
+        <div class="container">
+            <!-- Banner -->
+            <div class="banner-container" role="banner">
+                <svg class="themed-banner" id="svg-banner" width="2404.001" height="340" viewBox="0 0 1802.999 255" xmlns="http://www.w3.org/2000/svg" aria-label="League of Legends Banner">
+                    <path d="M164.5.5H.5v227h9v27h173v-45h27v-146h-18v-18h-9v-27h-18zm243 0h-191v227h9v27h200v-56h-18v-18h-117v-16h81v-56h-18v-18h-63v-16h135v-56h-18zm81 0h-56v137h9v27h18v18h9v27h18v18h9v27h119v-45h27v-45h27v-146h-18V.5h-56v135h-27v45h-34v-27h-18v-18h-9v-117h-18zm540 0h-191v137h9v27h126v16h-135v47h9v27h200v-146h-18v-18h-117v-16h135v-56h-18zm81 0h-56v182h9v27h18v18h9v27h173v-45h27v-191h-18V.5h-56v180h-88v-162h-18zm378 0h-191v137h9v27h126v16h-135v47h9v27h200v-146h-18v-18h-117v-16h135v-56h-18zm81 0h-56v227h9v27h65v-90h61v63h9v27h65v-236h-18V.5h-56v90h-61v-72h-18zm216 0h-56v227h9v27h65v-236h-18zm-1620 22h14v23h-3v-20h-11zm243 0h14v48h-135v20h-3v-23h135v-42h-11zm81 0h14v113h-3v-110h-11zm162 0h14v138h-27v45h-27v45h-111v-23h3v20h105v-45h27v-45h27v-132h-11zm378 0h14v48h-135v20h-3v-23h135v-42h-11zm81 0h14v158h-3v-155h-11zm162 0h14v183h-27v45h-165v-23h3v20h159v-45h27v-177h-11zm216 0h14v48h-135v20h-3v-23h135v-42h-11zm81 0h14v68h-3v-65h-11zm135 0h14v228h-57v-23h3v20h51v-222h-11zm81 0h14v228h-57v-23h3v20h51v-222h-11zm-1620 7h7v16h-7zm243 0h7v34h-135v27h-7v-43h135zm81 0h7v106h-7zm162 0h7v124h-27v45h-27v45h-97v-16h90v-45h27v-45h27zm378 0h7v34h-135v27h-7v-43h135zm81 0h7v151h-7zm162 0h7v169h-27v45h-151v-16h144v-45h27zm216 0h7v34h-135v27h-7v-43h135zm81 0h7v61h-7zm135 0h7v214h-43v-16h36zm81 0h7v214h-43v-16h36zm-1728 18h79v16h-72v117h-7zm11 20h68v3h-65v110h-3zm124 0h14v138h-27v45h-165v-23h3v20h159v-45h27v-132h-11zm-117 7h61v106h-61zm117 0h7v124h-27v45h-151v-16h144v-45h27zm621 16h-137v47h9v27h146v-56h-18zm-459 22h14v48h-81v20h-3v-23h81v-42h-11zm459 0h14v48h-138v-23h3v20h132v-42h-11zm216 0h14v138h-192v-23h3v20h186v-132h-11zm459 0h14v138h-192v-23h3v20h186v-132h-11zm-1134 7h7v34h-81v27h-7v-43h81zm459 0h7v34h-124v-16h117zm216 0h7v124h-178v-16h171zm459 0h7v124h-178v-16h171zm-1042 18h3v20h11v3h-14zm7 0h7v16h-7zm398 0h3v20h119v3h-122zm7 0h115v16h-115zm452 0h3v20h119v3h-122zm7 0h115v16h-115zm252 0h79v16h-72v90h-43v-16h36zm-1053 20h14v23h-3v-20h-11zm1064 0h68v3h-65v90h-57v-23h3v20h51zm-1064 7h7v16h-7zm-43 18h3v20h11v3h-14zm7 0h7v16h-7zm587 0h3v20h11v3h-14zm7 0h7v16h-7zm-666 20h14v48h-192v-23h3v20h186v-42h-11zm0 7h7v34h-178v-16h171z"/>
+                </svg>
+            </div>
+
+            <!-- Header -->
+            <header class="page-header">
+                <p class="subheader">Be curious, not judgmental. - Ted Lasso</p>
+                <h1>Team Randomizer</h1>
+                <p id="instructions-text" class="instructions"></p>
+            </header>
+
+            <!-- Mode Toggle -->
+            <div id="mode-toggle" class="switch-container" role="group" aria-label="Team mode selection">
+                <label for="mode-switch-checkbox" class="switch-label" id="mode-label-5man">
+                    <span class="switch-label-text active">Quick Play</span>
+                </label>
+                <div class="switch">
+                    <input type="checkbox" id="mode-switch-checkbox" role="switch" aria-checked="false" aria-labelledby="mode-label-5man mode-label-5v5">
+                    <span class="slider" aria-hidden="true"></span>
+                </div>
+                <label for="mode-switch-checkbox" class="switch-label" id="mode-label-5v5">
+                    <span class="switch-label-text">Draft Pick</span>
+                </label>
+            </div>
+
+
+
+            <!-- Stage 1: Parse Lobby Chat -->
+            <section id="stage-one-parse" class="stage-content" aria-labelledby="stage-one-heading">
+                <h2 id="stage-one-heading" class="visually-hidden">Step 1: Parse Player List</h2>
+                <div class="form-group">
+                    <label for="chat-input" class="visually-hidden">Paste lobby chat to extract player names</label>
+                    <textarea
+                        id="chat-input"
+                        class="chat-textarea"
+                        placeholder="Paste lobby chat here (e.g., PlayerOne#EUW joined the lobby...)"
+                        aria-describedby="instructions-text"
+                        rows="10"
+                        spellcheck="false"
+                        autocomplete="off"></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="parse-btn" type="button" class="btn btn-primary">
+                        <span class="btn-icon" aria-hidden="true">➜</span>
+                        <span class="btn-text">Confirm Players</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Stage 2: Configure Roles -->
+            <section id="stage-two-configure" class="stage-content hidden" aria-labelledby="stage-two-heading">
+                <h2 id="stage-two-heading" class="visually-hidden">Step 2: Configure Player Roles</h2>
+                <div id="player-config-container" class="player-config-list" role="list" aria-label="Player role configuration"></div>
+                <div class="button-group">
+                    <button id="back-btn" type="button" class="btn btn-secondary" aria-label="Go back to player list">
+                        <span class="btn-icon" aria-hidden="true">←</span>
+                        <span class="btn-text">Back</span>
+                    </button>
+                    <button id="randomize-btn" type="button" class="btn btn-primary" aria-label="Randomize teams with current selections">
+                        <span class="btn-icon" aria-hidden="true">🎲</span>
+                        <span class="btn-text">Randomize Teams</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Stage 3: Display Teams -->
+            <section id="stage-three-display" class="stage-content hidden" aria-labelledby="stage-three-heading">
+                <h2 id="stage-three-heading" class="visually-hidden">Step 3: Team Results</h2>
+                <div id="teams-container" class="teams-grid" role="region" aria-label="Generated teams"></div>
+                <div class="button-group">
+                    <button id="edit-players-btn" type="button" class="btn btn-secondary" aria-label="Go back to edit player roles">
+                        <span class="btn-icon" aria-hidden="true">✏️</span>
+                        <span class="btn-text">Edit Players</span>
+                    </button>
+                    <button id="reroll-btn" type="button" class="btn btn-primary" aria-label="Generate new team arrangement">
+                        <span class="btn-icon" aria-hidden="true">🔄</span>
+                        <span class="btn-text">Reroll</span>
+                    </button>
+                    <button id="proceed-to-draft-btn" type="button" class="btn btn-primary hidden" aria-label="Proceed to champion draft">
+                        <span class="btn-icon" aria-hidden="true">▶️</span>
+                        <span class="btn-text">Proceed to Draft</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Stage 5: Team Selection -->
+            <section id="stage-five-team-selection" class="stage-content hidden" aria-labelledby="stage-five-heading">
+                <h2 id="stage-five-heading">Join Draft</h2>
+                <div class="form-group">
+                    <label for="player-name-input">Enter your name:</label>
+                    <input type="text" id="player-name-input" placeholder="Your Name">
+                </div>
+                <div class="button-group">
+                    <button id="join-blue-team-btn" class="btn btn-primary">Join Blue Team</button>
+                    <button id="join-red-team-btn" class="btn btn-primary" style="background: var(--red-accent);">Join Red Team</button>
+                </div>
+            </section>
+
+            <!-- Stage 4: Tournament Draft -->
+            <section id="stage-four-draft" class="stage-content hidden" aria-labelledby="stage-four-heading">
+                <h2 id="stage-four-heading" class="visually-hidden">Step 4: Tournament Draft</h2>
+
+                <!-- Draft Status Bar -->
+                <div class="draft-status-bar">
+                    <div id="draft-status" class="draft-status-text">Drafting...</div>
+                    <div id="draft-phase-indicator" class="draft-phase">BAN PHASE</div>
+                </div>
+
+                <!-- Bans Row (Horizontal) -->
+                <div class="bans-row">
+                    <div class="team-bans blue-bans">
+                        <div class="team-label blue-label">
+                            BLUE SIDE
+                            <button id="share-blue-link-btn" class="share-link-btn" title="Copy Blue Team Link">
+                                <span class="btn-icon">🔗</span>
+                            </button>
+                        </div>
+                        <div id="blue-team-bans" class="ban-list-horizontal"></div>
+                    </div>
+                    <div class="team-bans red-bans">
+                        <div class="team-label red-label">
+                            RED SIDE
+                            <button id="share-red-link-btn" class="share-link-btn" title="Copy Red Team Link">
+                                <span class="btn-icon">🔗</span>
+                            </button>
+                        </div>
+                        <div id="red-team-bans" class="ban-list-horizontal"></div>
+                    </div>
+                </div>
+
+                <!-- Main Draft Area -->
+                <div class="draft-main-area">
+                    <!-- Blue Team Picks (Left Side) -->
+                    <div class="team-picks-column blue-picks-column">
+                        <div id="blue-team-players" class="player-list"></div>
+                        <div id="blue-team-picks" class="picks-vertical"></div>
+                    </div>
+
+                    <!-- Champion Selection Pool (Center) -->
+                    <div class="champion-selection-center">
+                        <!-- Bravery Mode and Controls -->
+                        <div class="draft-controls">
+                            <!-- Bravery Mode Toggle -->
+                            <div id="bravery-mode-toggle-container" class="switch-container" role="group" aria-label="Bravery mode selection">
+                                <label for="bravery-mode-checkbox" class="switch-label">
+                                    <span id="bravery-mode-label-text" class="switch-label-text">Fearless Draft</span>
+                                </label>
+                                <div class="switch">
+                                    <input type="checkbox" id="bravery-mode-checkbox" role="switch" aria-checked="false">
+                                    <span class="slider" aria-hidden="true"></span>
+                                </div>
+                                <button id="reset-bravery-session-btn" type="button" class="btn btn-secondary hidden">Reset Session</button>
+                            </div>
+
+                            <!-- Draft Controls -->
+                            <div class="button-group">
+                                <button id="draft-new-draft-btn" type="button" class="btn btn-primary">
+                                    <span class="btn-icon" aria-hidden="true">🎮</span>
+                                    <span class="btn-text">New Draft</span>
+                                </button>
+                                <button id="draft-edit-players-btn" type="button" class="btn btn-secondary">
+                                    <span class="btn-icon" aria-hidden="true">✏️</span>
+                                    <span class="btn-text">Edit Players</span>
+                                </button>
+                                <button id="begin-draft-btn" type="button" class="btn btn-primary">Begin Draft</button>
+                            </div>
+
+
+
+                            <!-- Champion Search -->
+                            <div class="search-container">
+                                <input type="text" id="champion-search" placeholder="Search champions..." class="champion-search-input" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <!-- Champion Grid -->
+                        <div id="champion-grid" class="champion-grid-league"></div>
+                    </div>
+
+                    <!-- Red Team Picks (Right Side) -->
+                    <div class="team-picks-column red-picks-column">
+                        <div id="red-team-players" class="player-list"></div>
+                        <div id="red-team-picks" class="picks-vertical"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script type="module" src="js/app.js?v=7"></script>
+</body>
+</html>
