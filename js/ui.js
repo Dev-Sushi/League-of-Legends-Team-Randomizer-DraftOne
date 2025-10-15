@@ -57,17 +57,41 @@ export function renderConfigUI() {
     playerPool.forEach(player => {
         const row = document.createElement('div');
         row.className = 'player-config-row';
-        row.innerHTML = `
-            <span class="player-name">${escapeHtml(player.name)}</span>
-            <div class="role-selector" data-player-name="${escapeHtml(player.name)}">
-                ${ALL_ROLES.map(role => `
-                    <button class="role-button ${player.roles.includes(role) ? 'selected' : ''}" data-role="${role}">
-                        <div class="role-icon"></div>${role}
-                    </button>
-                `).join('')}
-            </div>
-            <button class="remove-player-btn" data-player-name="${escapeHtml(player.name)}">&times;</button>
-        `;
+
+        // Create player name span
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'player-name';
+        nameSpan.textContent = player.name;
+
+        // Create role selector container
+        const roleSelector = document.createElement('div');
+        roleSelector.className = 'role-selector';
+        roleSelector.dataset.playerName = player.name; // Set data attribute safely
+
+        // Create role buttons
+        ALL_ROLES.forEach(role => {
+            const button = document.createElement('button');
+            button.className = 'role-button' + (player.roles.includes(role) ? ' selected' : '');
+            button.dataset.role = role;
+
+            const icon = document.createElement('div');
+            icon.className = 'role-icon';
+
+            button.appendChild(icon);
+            button.appendChild(document.createTextNode(role));
+            roleSelector.appendChild(button);
+        });
+
+        // Create remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-player-btn';
+        removeBtn.dataset.playerName = player.name; // Set data attribute safely
+        removeBtn.innerHTML = '&times;';
+
+        // Assemble the row
+        row.appendChild(nameSpan);
+        row.appendChild(roleSelector);
+        row.appendChild(removeBtn);
         fragment.appendChild(row);
     });
 

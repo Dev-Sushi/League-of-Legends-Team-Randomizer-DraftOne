@@ -120,6 +120,49 @@ try {
 export { socket };
 
 
+// --- CLIPBOARD HELPER ---
+/**
+ * Copies text to clipboard with fallback for non-HTTPS contexts
+ * @param {string} text - Text to copy
+ * @returns {Promise<boolean>} - Whether the copy was successful
+ */
+async function copyToClipboard(text) {
+    // Try modern clipboard API first (requires HTTPS or localhost)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            console.warn('Clipboard API failed, trying fallback:', err);
+        }
+    }
+
+    // Fallback for non-HTTPS contexts
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        if (successful) {
+            return true;
+        } else {
+            throw new Error('execCommand copy failed');
+        }
+    } catch (err) {
+        console.error('Failed to copy text:', err);
+        return false;
+    }
+}
+
+
 // --- CHAMPION API ---
 /**
  * Fetches the list of champions from the backend API
@@ -361,18 +404,54 @@ function initializeEventListeners() {
     const shareRedBtn = document.getElementById('share-red-link-btn');
 
     if (shareBlueBtn) {
-        shareBlueBtn.addEventListener('click', async () => {
+        shareBlueBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // Check if roomId is set
+            if (!roomId) {
+                alert('Cannot generate link: Room ID not available. Please try starting the draft again.');
+                return;
+            }
+
             // Ensure host has a name
             const ok = await promptForNameIfNeeded();
             if (!ok) return;
 
+            // Generate URL
             const url = new URL(window.location.href);
             url.searchParams.set('roomId', roomId);
             url.searchParams.set('team', 'blue');
             url.searchParams.set('isCaptain', 'true');
+            const urlString = url.toString();
 
-            await navigator.clipboard.writeText(url.toString());
-            alert('Blue team captain link copied to clipboard!\n\nYou are now the Red team captain.');
+            // Try to copy - with fallback to show the link if copy fails
+            try {
+                // Try modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(urlString);
+                    alert('Blue team captain link copied to clipboard!\n\nYou are now the Red team captain.');
+                } else {
+                    // Fallback method
+                    const textArea = document.createElement('textarea');
+                    textArea.value = urlString;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-9999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    if (successful) {
+                        alert('Blue team captain link copied to clipboard!\n\nYou are now the Red team captain.');
+                    } else {
+                        throw new Error('Copy failed');
+                    }
+                }
+            } catch (err) {
+                console.error('Clipboard copy failed:', err);
+                // Show a prompt with the URL so user can copy manually
+                prompt('Please copy this link manually (Ctrl+C):', urlString);
+            }
 
             // Make host the red team captain
             sendSocketMessage({
@@ -385,18 +464,54 @@ function initializeEventListeners() {
     }
 
     if (shareRedBtn) {
-        shareRedBtn.addEventListener('click', async () => {
+        shareRedBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            // Check if roomId is set
+            if (!roomId) {
+                alert('Cannot generate link: Room ID not available. Please try starting the draft again.');
+                return;
+            }
+
             // Ensure host has a name
             const ok = await promptForNameIfNeeded();
             if (!ok) return;
 
+            // Generate URL
             const url = new URL(window.location.href);
             url.searchParams.set('roomId', roomId);
             url.searchParams.set('team', 'red');
             url.searchParams.set('isCaptain', 'true');
+            const urlString = url.toString();
 
-            await navigator.clipboard.writeText(url.toString());
-            alert('Red team captain link copied to clipboard!\n\nYou are now the Blue team captain.');
+            // Try to copy - with fallback to show the link if copy fails
+            try {
+                // Try modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(urlString);
+                    alert('Red team captain link copied to clipboard!\n\nYou are now the Blue team captain.');
+                } else {
+                    // Fallback method
+                    const textArea = document.createElement('textarea');
+                    textArea.value = urlString;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-9999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    if (successful) {
+                        alert('Red team captain link copied to clipboard!\n\nYou are now the Blue team captain.');
+                    } else {
+                        throw new Error('Copy failed');
+                    }
+                }
+            } catch (err) {
+                console.error('Clipboard copy failed:', err);
+                // Show a prompt with the URL so user can copy manually
+                prompt('Please copy this link manually (Ctrl+C):', urlString);
+            }
 
             // Make host the blue team captain
             sendSocketMessage({
@@ -625,6 +740,20 @@ async function init() {
             // If user cancelled, return to initial stage
             showStage(1);
             return; // Skip normal initialization
+        }
+
+        // Wait for WebSocket to be ready before proceeding
+        if (socket) {
+            try {
+                console.log('Waiting for WebSocket to connect...');
+                await waitForSocketReady(10000); // Wait up to 10 seconds
+                console.log('WebSocket ready!');
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                alert('Failed to connect to server. Please refresh and try again.');
+                showStage(1);
+                return;
+            }
         }
 
         // Skip to draft stage
