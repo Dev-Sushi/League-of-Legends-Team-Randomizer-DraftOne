@@ -7,7 +7,7 @@ const { WebSocketServer } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 7778;
 
 // --- Serve Static Frontend Files ---
 app.use(express.static(path.join(__dirname, '/')));

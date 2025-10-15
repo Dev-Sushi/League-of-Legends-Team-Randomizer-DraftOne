@@ -27,7 +27,7 @@ A modular web application for creating randomized League of Legends teams with r
 docker-compose up -d
 ```
 
-Open [http://localhost:8080](http://localhost:8080)
+Open [http://localhost:7778](http://localhost:7778)
 
 ### Option 2: Node.js
 
@@ -36,7 +36,7 @@ npm install
 npm start
 ```
 
-Open [http://localhost:8080](http://localhost:8080)
+Open [http://localhost:7778](http://localhost:7778)
 
 ### Option 3: Simple HTTP Server
 
@@ -44,13 +44,13 @@ Open [http://localhost:8080](http://localhost:8080)
 
 ```bash
 # Using Python (if installed)
-python -m http.server 8080
+python -m http.server 7778
 
 # Using npx (no install needed)
-npx http-server -p 8080
+npx http-server -p 7778
 ```
 
-Open [http://localhost:8080](http://localhost:8080)
+Open [http://localhost:7778](http://localhost:7778)
 
 **Note:** Draft mode requires the backend server (Option 1 or 2).
 
@@ -129,7 +129,7 @@ npm install
 # Start development server
 npm start
 
-# Server runs at http://localhost:8080
+# Server runs at http://localhost:7778
 ```
 
 ### Making Changes
