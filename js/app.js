@@ -5,6 +5,7 @@ import { shuffleArray, validatePlayerCount } from './randomizer.js';
 import { showStage, renderConfigUI, setupConfigUIEventListeners } from './ui.js';
 import { displayTeams } from './display.js';
 import { initializeDraft } from './draft.js';
+import * as Multiplayer from './multiplayer.js';
 
 /**
  * Runs the team randomization
@@ -75,13 +76,151 @@ async function handleStartDraft() {
     // Navigate to draft stage
     showStage(4);
 
-    // Initialize draft UI
+    // Show multiplayer mode selection
+    const multiplayerSetup = document.getElementById('multiplayer-setup');
+    if (multiplayerSetup) {
+        multiplayerSetup.classList.remove('hidden');
+    }
+}
+
+/**
+ * Start solo draft mode
+ */
+async function startSoloDraft() {
     try {
-        await initializeDraft();
+        await initializeDraft('solo');
+        // Hide multiplayer setup UI
+        const multiplayerSetup = document.getElementById('multiplayer-setup');
+        if (multiplayerSetup) {
+            multiplayerSetup.classList.add('hidden');
+        }
     } catch (error) {
         console.error('Failed to initialize draft:', error);
         alert('Failed to initialize draft. Please check the console for details.');
-        showStage(3); // Go back to teams display
+        showStage(3);
+    }
+}
+
+/**
+ * Show multiplayer room options
+ */
+function showMultiplayerOptions() {
+    const roomSelection = document.getElementById('room-selection');
+    if (roomSelection) {
+        roomSelection.classList.remove('hidden');
+    }
+}
+
+/**
+ * Create a multiplayer room
+ */
+async function createMultiplayerRoom() {
+    const success = await Multiplayer.createRoom();
+    if (success) {
+        try {
+            await initializeDraft('multiplayer', 'blue');
+        } catch (error) {
+            console.error('Failed to initialize draft:', error);
+            alert('Failed to initialize draft. Please check the console for details.');
+        }
+    }
+}
+
+/**
+ * Join a multiplayer room
+ */
+async function joinMultiplayerRoom() {
+    const roomCodeInput = document.getElementById('room-code-input');
+    const roomCode = roomCodeInput.value.trim().toUpperCase();
+
+    if (!roomCode || roomCode.length !== 6) {
+        alert('Please enter a valid 6-character room code');
+        return;
+    }
+
+    const success = await Multiplayer.joinRoom(roomCode);
+    if (success) {
+        try {
+            await initializeDraft('multiplayer', Multiplayer.getCurrentTeam());
+        } catch (error) {
+            console.error('Failed to initialize draft:', error);
+            alert('Failed to initialize draft. Please check the console for details.');
+        }
+    }
+}
+
+/**
+ * Direct join from start screen
+ */
+async function directJoinRoom() {
+    const roomCodeInput = document.getElementById('direct-join-room-code');
+    const roomCode = roomCodeInput.value.trim().toUpperCase();
+
+    if (!roomCode || roomCode.length !== 6) {
+        alert('Please enter a valid 6-character room code');
+        return;
+    }
+
+    const success = await Multiplayer.joinRoom(roomCode);
+    if (success) {
+        try {
+            // Skip to stage 4 (draft)
+            showStage(4);
+            await initializeDraft('multiplayer', Multiplayer.getCurrentTeam());
+        } catch (error) {
+            console.error('Failed to initialize draft:', error);
+            alert('Failed to initialize draft. Please check the console for details.');
+            showStage(1);
+        }
+    }
+}
+
+/**
+ * Updates the room players list UI
+ */
+function updateRoomPlayersList(bluePlayerName, redPlayerName, spectators) {
+    const bluePlayerElement = document.getElementById('blue-player-name');
+    const redPlayerElement = document.getElementById('red-player-name');
+    const spectatorsListElement = document.getElementById('spectators-list');
+
+    if (bluePlayerElement) {
+        bluePlayerElement.textContent = bluePlayerName || '-';
+    }
+
+    if (redPlayerElement) {
+        redPlayerElement.textContent = redPlayerName || '-';
+    }
+
+    if (spectatorsListElement) {
+        if (spectators && spectators.length > 0) {
+            spectatorsListElement.textContent = spectators.join(', ');
+        } else {
+            spectatorsListElement.textContent = 'None';
+        }
+    }
+}
+
+/**
+ * Updates the team switcher preview label
+ */
+function updateTeamSwitcherPreview(selectedTeam, currentTeam) {
+    const previewElement = document.getElementById('team-switcher-preview');
+    if (!previewElement) return;
+
+    // Remove all preview classes
+    previewElement.classList.remove('no-change', 'blue-preview', 'red-preview', 'spectator-preview');
+
+    if (selectedTeam === currentTeam) {
+        previewElement.textContent = 'No changes';
+        previewElement.classList.add('no-change');
+    } else {
+        const teamLabels = {
+            'blue': 'Switch to Blue Team',
+            'red': 'Switch to Red Team',
+            'spectator': 'Switch to Spectator'
+        };
+        previewElement.textContent = teamLabels[selectedTeam] || 'Unknown';
+        previewElement.classList.add(`${selectedTeam}-preview`);
     }
 }
 
@@ -140,6 +279,123 @@ function initializeEventListeners() {
     if (draftEditPlayersBtn) {
         draftEditPlayersBtn.addEventListener('click', () => showStage(2));
     }
+
+    // Multiplayer mode selection
+    const soloDraftBtn = document.getElementById('solo-draft-btn');
+    if (soloDraftBtn) {
+        soloDraftBtn.addEventListener('click', startSoloDraft);
+    }
+
+    const multiplayerDraftBtn = document.getElementById('multiplayer-draft-btn');
+    if (multiplayerDraftBtn) {
+        multiplayerDraftBtn.addEventListener('click', showMultiplayerOptions);
+    }
+
+    // Multiplayer room management
+    const createRoomBtn = document.getElementById('create-room-btn');
+    if (createRoomBtn) {
+        createRoomBtn.addEventListener('click', createMultiplayerRoom);
+    }
+
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    if (joinRoomBtn) {
+        joinRoomBtn.addEventListener('click', joinMultiplayerRoom);
+    }
+
+    // Room code copy button
+    const copyRoomCodeBtn = document.getElementById('copy-room-code-btn');
+    if (copyRoomCodeBtn) {
+        copyRoomCodeBtn.addEventListener('click', () => {
+            const roomCode = Multiplayer.getRoomCode();
+            if (roomCode) {
+                navigator.clipboard.writeText(roomCode).then(() => {
+                    alert(`Room code ${roomCode} copied to clipboard!`);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+        });
+    }
+
+    // Multiplayer start draft button
+    const multiplayerStartDraftBtn = document.getElementById('multiplayer-start-draft-btn');
+    if (multiplayerStartDraftBtn) {
+        multiplayerStartDraftBtn.addEventListener('click', () => {
+            Multiplayer.startDraft();
+        });
+    }
+
+    // Allow Enter key to join room
+    const roomCodeInput = document.getElementById('room-code-input');
+    if (roomCodeInput) {
+        roomCodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinMultiplayerRoom();
+            }
+        });
+        // Auto-uppercase input
+        roomCodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
+
+    // Team switcher - preview selection
+    const teamSwitcher = document.getElementById('team-switcher');
+    const teamSwitcherConfirmBtn = document.getElementById('team-switcher-confirm-btn');
+    const teamSwitcherPreview = document.getElementById('team-switcher-preview');
+
+    if (teamSwitcher && teamSwitcherConfirmBtn && teamSwitcherPreview) {
+        // Update preview when selection changes
+        teamSwitcher.addEventListener('change', (e) => {
+            const selectedTeam = e.target.value;
+            const currentTeam = Multiplayer.getCurrentTeam();
+            updateTeamSwitcherPreview(selectedTeam, currentTeam);
+
+            // Show/hide confirm button
+            if (selectedTeam !== currentTeam) {
+                teamSwitcherConfirmBtn.classList.remove('hidden');
+            } else {
+                teamSwitcherConfirmBtn.classList.add('hidden');
+            }
+        });
+
+        // Confirm button - actually switch teams
+        teamSwitcherConfirmBtn.addEventListener('click', () => {
+            const selectedTeam = teamSwitcher.value;
+            const currentTeam = Multiplayer.getCurrentTeam();
+            if (selectedTeam !== currentTeam) {
+                Multiplayer.switchTeam(selectedTeam);
+                teamSwitcherConfirmBtn.classList.add('hidden');
+                updateTeamSwitcherPreview(selectedTeam, selectedTeam);
+            }
+        });
+    }
+
+    // Register callback for room updates
+    Multiplayer.onRoomUpdate((data) => {
+        updateRoomPlayersList(data.bluePlayerName, data.redPlayerName, data.spectators);
+    });
+
+    // Direct join from start screen
+    const directJoinBtn = document.getElementById('direct-join-btn');
+    if (directJoinBtn) {
+        directJoinBtn.addEventListener('click', directJoinRoom);
+    }
+
+    // Direct join room code input
+    const directJoinRoomCode = document.getElementById('direct-join-room-code');
+    if (directJoinRoomCode) {
+        // Allow Enter key to join room
+        directJoinRoomCode.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                directJoinRoom();
+            }
+        });
+        // Auto-uppercase input
+        directJoinRoomCode.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
 }
 
 /**
@@ -188,6 +444,9 @@ function initializeModeSwitch() {
  * Initializes the application on page load
  */
 async function init() {
+    // Initialize multiplayer module
+    Multiplayer.initMultiplayer();
+
     // Normal initialization for new sessions
     const savedLobby = loadLobbyFromStorage();
     if (savedLobby) {

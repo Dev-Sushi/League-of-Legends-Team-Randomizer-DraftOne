@@ -1,6 +1,7 @@
 // --- DRAFT UI MODULE ---
 
 import { preloadSounds, playBanSound, playPickSound, playChampionHoverSound, playPhaseSound } from './sounds.js';
+import * as Multiplayer from './multiplayer.js';
 
 // --- STATE ---
 let champions = []; // Array of {id, name, image, tags}
@@ -17,6 +18,8 @@ let gameState = {
 let fearlessDraftEnabled = false;
 let fearlessUsedChampions = new Set(JSON.parse(localStorage.getItem('fearlessUsedChampions')) || []);
 let selectedRole = 'All';
+let draftMode = 'solo'; // 'solo' or 'multiplayer'
+let myTeam = null; // 'blue' or 'red' in multiplayer mode
 
 // --- CHAMPION API ---
 /**
@@ -126,6 +129,25 @@ export function renderChampionGrid(championList) {
 function handleChampionClick(championName) {
     if (gameState.phase !== 'drafting') return;
 
+    // In multiplayer mode, check if it's the player's turn
+    if (draftMode === 'multiplayer') {
+        // Spectators can't make actions
+        if (myTeam === 'spectator') {
+            alert("Spectators cannot make draft actions!");
+            return;
+        }
+
+        if (gameState.currentTeam !== myTeam) {
+            alert("It's not your turn!");
+            return;
+        }
+        // Send action to server
+        Multiplayer.sendDraftAction(championName);
+        // Server will handle validation and broadcast the update
+        return;
+    }
+
+    // Solo mode logic (existing)
     const isUnavailable = [...gameState.blueBans, ...gameState.redBans, ...gameState.bluePicks, ...gameState.redPicks].includes(championName);
     if (isUnavailable) {
         alert('Champion is already picked or banned.');
@@ -213,13 +235,18 @@ function advanceDraft() {
 /**
  * Updates the draft UI based on the current game state
  */
-export function updateDraftUI() {
+export function updateDraftUI(newGameState = null) {
+    // If new state provided (from multiplayer), merge it
+    if (newGameState) {
+        gameState = { ...gameState, ...newGameState };
+    }
+
     const statusElement = document.getElementById('draft-status');
     const phaseElement = document.getElementById('draft-phase-indicator');
     const body = document.body;
     const championGrid = document.getElementById('champion-grid');
 
-    body.classList.remove('blue-turn', 'red-turn');
+    body.classList.remove('blue-turn', 'red-turn', 'my-turn', 'opponent-turn', 'spectator-mode');
     championGrid.classList.remove('picking', 'banning');
 
     // Add animation classes for visual feedback
@@ -239,7 +266,22 @@ export function updateDraftUI() {
     } else if (gameState.phase === 'drafting') {
         const teamText = gameState.currentTeam === 'blue' ? 'Blue Team' : 'Red Team';
         const actionText = gameState.currentAction === 'ban' ? 'Banning' : 'Picking';
-        statusElement.textContent = `${teamText} ${actionText}...`;
+
+        // Update status text for multiplayer
+        if (draftMode === 'multiplayer') {
+            if (myTeam === 'spectator') {
+                statusElement.textContent = `Spectating - ${teamText} ${actionText}...`;
+                body.classList.add('spectator-mode');
+            } else {
+                const isMyTurn = gameState.currentTeam === myTeam;
+                statusElement.textContent = isMyTurn
+                    ? `Your Turn - ${actionText}`
+                    : `Opponent ${actionText}...`;
+                body.classList.add(isMyTurn ? 'my-turn' : 'opponent-turn');
+            }
+        } else {
+            statusElement.textContent = `${teamText} ${actionText}...`;
+        }
 
         if (gameState.currentTeam === 'blue') {
             body.classList.add('blue-turn');
@@ -411,9 +453,14 @@ function updateChampionGridAvailability() {
 
 /**
  * Initializes the draft UI
+ * @param {string} mode - 'solo' or 'multiplayer'
+ * @param {string} team - 'blue' or 'red' (only for multiplayer)
  */
-export async function initializeDraft() {
-    console.log('Initializing single-user draft...');
+export async function initializeDraft(mode = 'solo', team = null) {
+    console.log(`Initializing ${mode} draft...`);
+
+    draftMode = mode;
+    myTeam = team;
 
     // Preload sound effects
     preloadSounds();
@@ -438,9 +485,31 @@ export async function initializeDraft() {
     initializeFearlessDraft();
     initializeRoleFilter();
 
-    gameState.phase = 'drafting';
-    advanceDraft();
-    updateDraftUI();
+    // Setup multiplayer callbacks if in multiplayer mode
+    if (mode === 'multiplayer') {
+        Multiplayer.onDraftUpdate((newState, playerTeam) => {
+            myTeam = playerTeam;
+            updateDraftUI(newState);
+
+            // Play sound effects for opponent's actions
+            if (newState.currentTeam !== playerTeam) {
+                const lastAction = newState.currentAction;
+                if (lastAction === 'ban' || lastAction === 'pick') {
+                    const soundTeam = newState.currentTeam === 'blue' ? 'red' : 'blue';
+                    if (lastAction === 'ban') {
+                        playBanSound(soundTeam);
+                    } else {
+                        playPickSound(soundTeam);
+                    }
+                }
+            }
+        });
+    } else {
+        // Solo mode: start draft immediately
+        gameState.phase = 'drafting';
+        advanceDraft();
+        updateDraftUI();
+    }
 }
 
 function initializeFearlessDraft() {
@@ -452,19 +521,34 @@ function initializeFearlessDraft() {
     fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
     fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
 
+    // Disable toggle in multiplayer if not room creator (blue team) or if spectator
+    if (draftMode === 'multiplayer' && (myTeam !== 'blue' || myTeam === 'spectator')) {
+        fearlessToggle.disabled = true;
+        fearlessResetBtn.disabled = true;
+    }
 
     fearlessToggle.addEventListener('change', (e) => {
         fearlessDraftEnabled = e.target.checked;
         fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
         fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
-        updateChampionGridAvailability();
+
+        // In multiplayer, sync with server
+        if (draftMode === 'multiplayer') {
+            Multiplayer.toggleFearlessDraft(fearlessDraftEnabled);
+        } else {
+            updateChampionGridAvailability();
+        }
     });
 
     fearlessResetBtn.addEventListener('click', () => {
         if (confirm('Are you sure you want to reset the Fearless Draft session? This will clear all used champions.')) {
-            fearlessUsedChampions.clear();
-            localStorage.removeItem('fearlessUsedChampions');
-            updateChampionGridAvailability();
+            if (draftMode === 'multiplayer') {
+                Multiplayer.resetFearlessSession();
+            } else {
+                fearlessUsedChampions.clear();
+                localStorage.removeItem('fearlessUsedChampions');
+                updateChampionGridAvailability();
+            }
         }
     });
 }

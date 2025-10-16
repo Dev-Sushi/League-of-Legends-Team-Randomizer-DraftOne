@@ -64,6 +64,32 @@
                         <span class="btn-text">Confirm Players</span>
                     </button>
                 </div>
+
+                <!-- Direct Join Room Section -->
+                <div class="direct-join-section">
+                    <div class="divider-with-text">
+                        <span class="divider-line"></span>
+                        <span class="divider-text">OR</span>
+                        <span class="divider-line"></span>
+                    </div>
+                    <div class="direct-join-container">
+                        <h3 class="direct-join-title">Join Existing Draft Room</h3>
+                        <div class="direct-join-input-group">
+                            <input
+                                type="text"
+                                id="direct-join-room-code"
+                                placeholder="Enter 6-character room code"
+                                maxlength="6"
+                                class="direct-join-input"
+                                autocomplete="off"
+                            >
+                            <button id="direct-join-btn" type="button" class="btn btn-primary direct-join-btn">
+                                <span class="btn-icon" aria-hidden="true">🚪</span>
+                                <span class="btn-text">Join Room</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Stage 2: Configure Roles -->
@@ -106,6 +132,90 @@
             <section id="stage-four-draft" class="stage-content hidden" aria-labelledby="stage-four-heading">
                 <h2 id="stage-four-heading" class="visually-hidden">Step 4: Tournament Draft</h2>
 
+                <!-- Multiplayer Setup (shown before draft starts) -->
+                <div id="multiplayer-setup" class="multiplayer-setup hidden">
+                    <h3>Choose Draft Mode</h3>
+                    <div class="draft-mode-selector">
+                        <button id="solo-draft-btn" type="button" class="btn btn-mode">
+                            <span class="btn-icon">👤</span>
+                            <span class="btn-text">Solo Draft</span>
+                            <span class="btn-description">Control both teams yourself</span>
+                        </button>
+                        <button id="multiplayer-draft-btn" type="button" class="btn btn-mode">
+                            <span class="btn-icon">👥</span>
+                            <span class="btn-text">Multiplayer Draft</span>
+                            <span class="btn-description">Draft with another player</span>
+                        </button>
+                    </div>
+
+                    <!-- Create/Join Room UI -->
+                    <div id="room-selection" class="room-selection hidden">
+                        <h4>Multiplayer Room</h4>
+                        <div class="room-options">
+                            <button id="create-room-btn" type="button" class="btn btn-primary">
+                                <span class="btn-icon">+</span>
+                                <span class="btn-text">Create Room</span>
+                            </button>
+                            <div class="divider">OR</div>
+                            <div class="join-room-container">
+                                <input type="text" id="room-code-input" placeholder="Enter room code" maxlength="6" class="room-code-input" autocomplete="off">
+                                <button id="join-room-btn" type="button" class="btn btn-primary">
+                                    <span class="btn-text">Join Room</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multiplayer Room Info (shown when in a room) -->
+                <div id="multiplayer-room-info" class="multiplayer-room-info hidden">
+                    <div class="room-info-row">
+                        <div class="room-code-container">
+                            <span class="room-code-label">Room Code:</span>
+                            <span id="room-code-display" class="room-code">------</span>
+                            <button id="copy-room-code-btn" type="button" class="btn-icon-small" title="Copy room code">📋</button>
+                        </div>
+                        <div id="team-badge" class="team-badge">Blue Team</div>
+                        <div id="connection-status" class="connection-status">Connected</div>
+                    </div>
+                    <div class="team-switcher-container">
+                        <div class="team-switcher-header">
+                            <label for="team-switcher" class="team-switcher-label">Switch Role:</label>
+                            <div id="team-switcher-preview" class="team-switcher-preview">No changes</div>
+                        </div>
+                        <div class="team-switcher-controls">
+                            <select id="team-switcher" class="team-switcher-select">
+                                <option value="blue">Blue Team</option>
+                                <option value="red">Red Team</option>
+                                <option value="spectator">Spectator</option>
+                            </select>
+                            <button id="team-switcher-confirm-btn" type="button" class="btn btn-secondary team-switcher-confirm-btn hidden">
+                                <span class="btn-icon" aria-hidden="true">✓</span>
+                                <span class="btn-text">Confirm</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="room-players-list">
+                        <div class="players-section">
+                            <span class="players-label">Players:</span>
+                            <div class="player-slots">
+                                <div class="player-slot blue-slot">
+                                    <span class="slot-label">Blue:</span>
+                                    <span id="blue-player-name" class="player-name">-</span>
+                                </div>
+                                <div class="player-slot red-slot">
+                                    <span class="slot-label">Red:</span>
+                                    <span id="red-player-name" class="player-name">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="spectators-section">
+                            <span class="spectators-label">Spectators:</span>
+                            <div id="spectators-list" class="spectators-list-items">None</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Draft Status Bar -->
                 <div class="draft-status-bar">
                     <div id="draft-status" class="draft-status-text">Drafting...</div>
@@ -147,7 +257,11 @@
                             </div>
 
                             <!-- Draft Controls -->
-                            <div class="button-group">
+                            <div id="draft-controls-main" class="button-group">
+                                <button id="multiplayer-start-draft-btn" type="button" class="btn btn-primary hidden">
+                                    <span class="btn-icon" aria-hidden="true">▶️</span>
+                                    <span class="btn-text">Start Draft</span>
+                                </button>
                                 <button id="draft-new-draft-btn" type="button" class="btn btn-primary">
                                     <span class="btn-icon" aria-hidden="true">🎮</span>
                                     <span class="btn-text">New Draft</span>
@@ -156,7 +270,7 @@
                                     <span class="btn-icon" aria-hidden="true">✏️</span>
                                     <span class="btn-text">Edit Players</span>
                                 </button>
-                                
+
                             </div>
 
                             <!-- Champion Search -->
@@ -190,6 +304,9 @@
             </p>
         </div>
     </footer>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
 
     <script type="module" src="js/app.js?v=10"></script>
 </body>
