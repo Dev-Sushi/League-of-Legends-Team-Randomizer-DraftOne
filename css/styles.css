@@ -26,17 +26,18 @@ body {
     background: linear-gradient(135deg, var(--bg-dark-primary) 0%, #001a2e 100%);
     color: var(--text-primary);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    padding: 20px;
+    padding: 20px 20px 0 20px;
     line-height: 1.6;
 }
 
 main {
     width: 100%;
     max-width: 900px;
+    flex: 1;
 }
 
 .container {
@@ -1613,5 +1614,55 @@ body.red-turn {
     .champion-name-label {
         font-size: 0.65rem;
         padding: 4px 2px;
+    }
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+
+.site-footer {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding: 1rem 1rem;
+    margin-top: 3rem;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(1, 10, 19, 0.8) 0%, rgba(26, 39, 58, 0.3) 100%);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.site-footer p {
+    margin: 0.3rem 0;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.site-footer a {
+    color: var(--gold-accent);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.site-footer a:hover {
+    color: var(--blue-accent);
+    text-shadow: 0 0 10px rgba(10, 172, 230, 0.5);
+}
+
+@media (max-width: 600px) {
+    .site-footer {
+        padding: 0.8rem 0.5rem;
+        margin-top: 2rem;
+    }
+
+    .site-footer p {
+        font-size: 0.65rem;
     }
 }
