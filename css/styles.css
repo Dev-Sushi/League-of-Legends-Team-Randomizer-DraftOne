@@ -757,6 +757,24 @@ input:checked + .slider:before {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
+    transition: all 0.3s ease;
+}
+
+.draft-status-text-update {
+    animation: status-glow 0.5s ease-out;
+}
+
+@keyframes status-glow {
+    0%, 100% {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        text-shadow:
+            0 0 20px rgba(255, 215, 0, 0.8),
+            0 0 30px rgba(255, 215, 0, 0.6),
+            0 0 40px rgba(255, 215, 0, 0.4);
+        transform: scale(1.05);
+    }
 }
 
 .draft-phase {
@@ -768,6 +786,28 @@ input:checked + .slider:before {
     padding: 0.5rem 1rem;
     background-color: rgba(26, 39, 58, 0.7);
     border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.draft-phase-update {
+    animation: phase-pulse 0.6s ease-out;
+}
+
+@keyframes phase-pulse {
+    0% {
+        transform: scale(1);
+        background-color: rgba(26, 39, 58, 0.7);
+    }
+    50% {
+        transform: scale(1.1);
+        background-color: rgba(200, 155, 60, 0.3);
+        color: var(--gold-accent);
+        box-shadow: 0 0 20px rgba(200, 155, 60, 0.5);
+    }
+    100% {
+        transform: scale(1);
+        background-color: rgba(26, 39, 58, 0.7);
+    }
 }
 
 /* --- Bans Row (Horizontal at top) --- */
@@ -859,12 +899,39 @@ input:checked + .slider:before {
     transition: all 0.3s ease;
 }
 
+.ban-slot-league.filled:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px rgba(230, 69, 61, 0.6);
+    z-index: 10;
+}
+
 .ban-slot-league.empty {
     opacity: 0.3;
 }
 
 .ban-slot-league.filled {
     border-color: var(--red-accent);
+    animation: ban-slot-fill 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+@keyframes ban-slot-fill {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+        box-shadow: 0 0 0 rgba(230, 69, 61, 0);
+    }
+    50% {
+        transform: scale(1.2) rotate(10deg);
+        box-shadow: 0 0 30px rgba(230, 69, 61, 0.8);
+    }
+    75% {
+        transform: scale(0.9) rotate(-5deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+        box-shadow: 0 0 15px rgba(230, 69, 61, 0.4);
+    }
 }
 
 .ban-portrait {
@@ -872,6 +939,23 @@ input:checked + .slider:before {
     height: 100%;
     object-fit: cover;
     filter: grayscale(0.5) brightness(0.6);
+    animation: ban-portrait-reveal 0.6s ease-out forwards;
+}
+
+@keyframes ban-portrait-reveal {
+    0% {
+        transform: scale(1.2);
+        opacity: 0;
+        filter: grayscale(0) brightness(1.5) blur(5px);
+    }
+    50% {
+        filter: grayscale(0.3) brightness(1) blur(2px);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: grayscale(0.5) brightness(0.6) blur(0);
+    }
 }
 
 .ban-x {
@@ -882,8 +966,26 @@ input:checked + .slider:before {
     font-size: 2.5rem;
     font-weight: 900;
     color: var(--red-accent);
-    text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+    text-shadow:
+        0 0 10px rgba(230, 69, 61, 1),
+        0 0 20px rgba(230, 69, 61, 0.6);
     pointer-events: none;
+    animation: ban-x-slot-appear 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s backwards;
+}
+
+@keyframes ban-x-slot-appear {
+    0% {
+        transform: translate(-50%, -50%) scale(0) rotate(-90deg);
+        opacity: 0;
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(1.3) rotate(10deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+    }
 }
 
 /* --- Main Draft Area (Picks + Champion Pool) --- */
@@ -938,6 +1040,12 @@ input:checked + .slider:before {
     text-align: center;
 }
 
+.pick-slot-league.filled:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(10, 172, 230, 0.5);
+    border-color: var(--blue-accent);
+}
+
 .pick-slot-league.empty {
     opacity: 0.4;
 }
@@ -945,6 +1053,27 @@ input:checked + .slider:before {
 .pick-slot-league.filled {
     border-color: var(--blue-accent);
     background-color: rgba(10, 172, 230, 0.1);
+    animation: pick-slot-fill 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pick-slot-fill {
+    0% {
+        transform: translateX(-50px) scale(0.8);
+        opacity: 0;
+        box-shadow: 0 0 0 rgba(10, 172, 230, 0);
+    }
+    40% {
+        transform: translateX(5px) scale(1.05);
+        box-shadow: 0 0 40px rgba(10, 172, 230, 0.8);
+    }
+    70% {
+        transform: translateX(-2px) scale(0.98);
+    }
+    100% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(10, 172, 230, 0.3);
+    }
 }
 
 .blue-picks-column .pick-slot-league.filled {
@@ -973,6 +1102,23 @@ input:checked + .slider:before {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    animation: pick-portrait-reveal 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pick-portrait-reveal {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+        filter: brightness(2) blur(10px);
+    }
+    50% {
+        filter: brightness(1.5) blur(2px);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1) blur(0);
+    }
 }
 
 .pick-champ-name {
@@ -982,6 +1128,18 @@ input:checked + .slider:before {
     margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    animation: pick-text-appear 0.5s ease-out 0.3s backwards;
+}
+
+@keyframes pick-text-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .pick-position {
@@ -1002,6 +1160,32 @@ input:checked + .slider:before {
     padding: 15px;
     min-height: 0; /* Add this for proper flex sizing */
     flex: 1;
+}
+
+.role-filter-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.role-filter-btn {
+    background: var(--bg-dark-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    margin: 0 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.role-filter-btn.selected, .role-filter-btn:hover {
+    background: var(--gold-accent);
+    color: var(--bg-dark-primary);
+    border-color: var(--gold-accent);
 }
 
 .draft-controls {
@@ -1107,6 +1291,209 @@ input:checked + .slider:before {
     filter: grayscale(1) brightness(0.4);
     border-color: var(--red-accent) !important;
     background-color: rgba(230, 69, 61, 0.1);
+}
+
+body.blue-turn {
+    background: linear-gradient(135deg, var(--bg-dark-primary) 0%, #001a2e 100%);
+}
+
+body.red-turn {
+    background: linear-gradient(135deg, var(--bg-dark-primary) 0%, #2e0000 100%);
+}
+
+#champion-grid.picking .champion-card-league:not(.disabled):hover {
+    box-shadow: 0 0 30px var(--blue-accent);
+}
+
+#champion-grid.banning .champion-card-league:not(.disabled):hover {
+    box-shadow: 0 0 30px var(--red-accent);
+}
+
+.champion-card-league.banned {
+    animation: ban-animation 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    position: relative;
+}
+
+.champion-card-league.banned::before {
+    content: '✕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--red-accent);
+    text-shadow:
+        0 0 20px rgba(230, 69, 61, 1),
+        0 0 40px rgba(230, 69, 61, 0.8),
+        0 0 60px rgba(230, 69, 61, 0.6);
+    z-index: 10;
+    pointer-events: none;
+    animation: ban-x-appear 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+.champion-card-league.banned::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    background: radial-gradient(circle, rgba(230, 69, 61, 0.6) 0%, transparent 70%);
+    opacity: 0;
+    animation: ban-flash 0.8s ease-out forwards;
+    pointer-events: none;
+    z-index: 9;
+}
+
+.champion-card-league.picked {
+    animation: pick-animation 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    position: relative;
+}
+
+.champion-card-league.picked::before {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    background: linear-gradient(45deg, transparent 30%, rgba(10, 172, 230, 0.8) 50%, transparent 70%);
+    opacity: 0;
+    animation: pick-shimmer 0.8s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.champion-card-league.picked::after {
+    content: '';
+    position: absolute;
+    inset: -15px;
+    background: radial-gradient(circle, rgba(10, 172, 230, 0.4) 0%, transparent 70%);
+    opacity: 0;
+    animation: pick-glow-pulse 0.8s ease-out forwards;
+    pointer-events: none;
+    z-index: 9;
+}
+
+@keyframes ban-animation {
+    0% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+        filter: grayscale(0) brightness(1);
+    }
+    15% {
+        transform: scale(1.15) rotate(5deg);
+        filter: grayscale(0) brightness(1.2);
+    }
+    30% {
+        transform: scale(1.1) rotate(-5deg);
+        filter: grayscale(0.3) brightness(1.1);
+    }
+    45% {
+        transform: scale(1.15) rotate(3deg);
+        filter: grayscale(0.6) brightness(0.9);
+    }
+    60% {
+        transform: scale(0.95) rotate(-2deg);
+        filter: grayscale(0.8) brightness(0.6);
+    }
+    100% {
+        transform: scale(0.7) rotate(0deg);
+        opacity: 0.2;
+        filter: grayscale(1) brightness(0.3);
+        border-color: var(--red-accent) !important;
+        background-color: rgba(230, 69, 61, 0.2);
+    }
+}
+
+@keyframes ban-x-appear {
+    0% {
+        transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(1.3) rotate(10deg);
+        opacity: 1;
+    }
+    80% {
+        transform: translate(-50%, -50%) scale(0.9) rotate(-5deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes ban-flash {
+    0%, 100% {
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+    }
+    40% {
+        opacity: 0.6;
+    }
+    70% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes pick-animation {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(10, 172, 230, 0);
+        filter: brightness(1);
+    }
+    20% {
+        transform: scale(1.2);
+        box-shadow: 0 0 40px rgba(10, 172, 230, 0.8);
+        filter: brightness(1.4);
+    }
+    40% {
+        transform: scale(1.1);
+        box-shadow: 0 0 50px rgba(10, 172, 230, 1);
+        filter: brightness(1.3);
+    }
+    60% {
+        transform: scale(1.25);
+        box-shadow: 0 0 60px rgba(10, 172, 230, 0.9);
+        filter: brightness(1.2);
+    }
+    80% {
+        transform: scale(1.15);
+        box-shadow: 0 0 45px rgba(10, 172, 230, 0.7);
+        filter: brightness(1.1);
+    }
+    100% {
+        transform: scale(1.2);
+        box-shadow: 0 0 50px rgba(10, 172, 230, 0.6);
+        filter: brightness(1.15);
+    }
+}
+
+@keyframes pick-shimmer {
+    0% {
+        opacity: 0;
+        transform: translateX(-100%) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(100%) rotate(5deg);
+    }
+}
+
+@keyframes pick-glow-pulse {
+    0%, 100% {
+        opacity: 0;
+    }
+    20% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    80% {
+        opacity: 0.4;
+    }
 }
 
 .champion-card-league.disabled:hover {

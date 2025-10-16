@@ -1,8 +1,9 @@
-
 // --- DRAFT UI MODULE ---
 
+import { preloadSounds, playBanSound, playPickSound, playChampionHoverSound, playPhaseSound } from './sounds.js';
+
 // --- STATE ---
-let champions = []; // Array of {id, name, image}
+let champions = []; // Array of {id, name, image, tags}
 let filteredChampions = [];
 let gameState = {
     phase: 'idle',
@@ -15,6 +16,7 @@ let gameState = {
 };
 let fearlessDraftEnabled = false;
 let fearlessUsedChampions = new Set(JSON.parse(localStorage.getItem('fearlessUsedChampions')) || []);
+let selectedRole = 'All';
 
 // --- CHAMPION API ---
 /**
@@ -39,7 +41,8 @@ async function fetchChampionList() {
         const championArray = Object.values(championsData.data).map(champ => ({
             id: champ.id,
             name: champ.name,
-            image: baseUrl + champ.image.full
+            image: baseUrl + champ.image.full,
+            tags: champ.tags
         }));
         console.log('Champions loaded:', championArray.length, 'champions');
         return championArray;
@@ -63,14 +66,8 @@ function initializeChampionSearch() {
     const searchInput = document.getElementById('champion-search');
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase().trim();
-        if (searchTerm === '') {
-            filteredChampions = [...champions];
-        } else {
-            filteredChampions = champions.filter(champ =>
-                champ.name.toLowerCase().includes(searchTerm)
-            );
-        }
-        renderChampionGrid(filteredChampions);
+        selectedRole = 'All';
+        filterChampions();
     });
 }
 
@@ -107,6 +104,14 @@ export function renderChampionGrid(championList) {
 
         championCard.appendChild(img);
         championCard.appendChild(nameLabel);
+
+        // Add hover sound effect
+        championCard.addEventListener('mouseenter', () => {
+            if (gameState.phase === 'drafting' && !championCard.classList.contains('disabled')) {
+                playChampionHoverSound();
+            }
+        });
+
         championCard.addEventListener('click', () => handleChampionClick(champ.name));
         grid.appendChild(championCard);
     });
@@ -132,12 +137,18 @@ function handleChampionClick(championName) {
         return;
     }
 
+    const championCard = document.querySelector(`[data-champion="${championName}"]`);
+
     if (gameState.currentAction === 'ban') {
         if (gameState.currentTeam === 'blue') {
             gameState.blueBans.push(championName);
         } else {
             gameState.redBans.push(championName);
         }
+        championCard.classList.add('banned');
+
+        // Play ban sound effect
+        playBanSound(gameState.currentTeam);
     } else if (gameState.currentAction === 'pick') {
         if (gameState.currentTeam === 'blue') {
             gameState.bluePicks.push(championName);
@@ -148,10 +159,16 @@ function handleChampionClick(championName) {
             fearlessUsedChampions.add(championName);
             localStorage.setItem('fearlessUsedChampions', JSON.stringify(Array.from(fearlessUsedChampions)));
         }
+        championCard.classList.add('picked');
+
+        // Play pick sound effect
+        playPickSound(gameState.currentTeam);
     }
 
-    advanceDraft();
-    updateDraftUI();
+    setTimeout(() => {
+        advanceDraft();
+        updateDraftUI();
+    }, 500);
 }
 
 /**
@@ -172,15 +189,24 @@ function advanceDraft() {
     ];
 
     const totalActions = gameState.blueBans.length + gameState.redBans.length + gameState.bluePicks.length + gameState.redPicks.length;
+    const previousTotalActions = totalActions - 1;
 
     if (totalActions < draftOrder.length) {
         const nextAction = draftOrder[totalActions];
+        const previousAction = previousTotalActions >= 0 ? draftOrder[previousTotalActions] : null;
+
         gameState.currentAction = nextAction.action;
         gameState.currentTeam = nextAction.team;
+
+        // Play phase sound when transitioning between major phases
+        if (previousAction && previousAction.action !== nextAction.action) {
+            playPhaseSound();
+        }
     } else {
         gameState.phase = 'complete';
         gameState.currentAction = null;
         gameState.currentTeam = null;
+        playPhaseSound();
     }
 }
 
@@ -190,6 +216,22 @@ function advanceDraft() {
 export function updateDraftUI() {
     const statusElement = document.getElementById('draft-status');
     const phaseElement = document.getElementById('draft-phase-indicator');
+    const body = document.body;
+    const championGrid = document.getElementById('champion-grid');
+
+    body.classList.remove('blue-turn', 'red-turn');
+    championGrid.classList.remove('picking', 'banning');
+
+    // Add animation classes for visual feedback
+    statusElement.classList.remove('draft-status-text-update');
+    phaseElement.classList.remove('draft-phase-update');
+
+    // Trigger reflow to restart animation
+    void statusElement.offsetWidth;
+    void phaseElement.offsetWidth;
+
+    statusElement.classList.add('draft-status-text-update');
+    phaseElement.classList.add('draft-phase-update');
 
     if (gameState.phase === 'complete') {
         statusElement.textContent = 'Draft Complete!';
@@ -198,6 +240,18 @@ export function updateDraftUI() {
         const teamText = gameState.currentTeam === 'blue' ? 'Blue Team' : 'Red Team';
         const actionText = gameState.currentAction === 'ban' ? 'Banning' : 'Picking';
         statusElement.textContent = `${teamText} ${actionText}...`;
+
+        if (gameState.currentTeam === 'blue') {
+            body.classList.add('blue-turn');
+        } else {
+            body.classList.add('red-turn');
+        }
+
+        if (gameState.currentAction === 'pick') {
+            championGrid.classList.add('picking');
+        } else {
+            championGrid.classList.add('banning');
+        }
 
         const totalActions = gameState.blueBans.length + gameState.redBans.length + gameState.bluePicks.length + gameState.redPicks.length;
 
@@ -361,6 +415,9 @@ function updateChampionGridAvailability() {
 export async function initializeDraft() {
     console.log('Initializing single-user draft...');
 
+    // Preload sound effects
+    preloadSounds();
+
     gameState = {
         phase: 'idle',
         currentTeam: 'blue',
@@ -379,7 +436,8 @@ export async function initializeDraft() {
     renderChampionGrid(filteredChampions);
     initializeChampionSearch();
     initializeFearlessDraft();
-    
+    initializeRoleFilter();
+
     gameState.phase = 'drafting';
     advanceDraft();
     updateDraftUI();
@@ -409,4 +467,48 @@ function initializeFearlessDraft() {
             updateChampionGridAvailability();
         }
     });
+}
+
+let roleFilterInitialized = false;
+
+function initializeRoleFilter() {
+    const roleFilterContainer = document.getElementById('role-filter-container');
+    roleFilterContainer.innerHTML = '';
+    const roles = ['All', 'Fighter', 'Tank', 'Mage', 'Assassin', 'Marksman', 'Support'];
+
+    roles.forEach(role => {
+        const button = document.createElement('button');
+        button.className = 'role-filter-btn';
+        button.textContent = role;
+        if (role === selectedRole) {
+            button.classList.add('selected');
+        }
+        button.addEventListener('click', () => {
+            selectedRole = role;
+            filterChampions();
+            const buttons = roleFilterContainer.querySelectorAll('.role-filter-btn');
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+        });
+        roleFilterContainer.appendChild(button);
+    });
+    roleFilterInitialized = true;
+}
+
+function filterChampions() {
+    const searchTerm = document.getElementById('champion-search').value.toLowerCase().trim();
+    let tempChampions = [...champions];
+
+    if (searchTerm) {
+        tempChampions = tempChampions.filter(champ =>
+            champ.name.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    if (selectedRole !== 'All') {
+        tempChampions = tempChampions.filter(champ => champ.tags.includes(selectedRole));
+    }
+
+    filteredChampions = tempChampions;
+    renderChampionGrid(filteredChampions);
 }
