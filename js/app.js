@@ -58,8 +58,8 @@ function updateButtonVisibility() {
     const proceedToDraftBtn = document.getElementById('proceed-to-draft-btn');
 
     if (mode === '5v5') {
-        // 5v5 Custom mode: show Proceed to Draft button, hide Reroll
-        rerollBtn.classList.add('hidden');
+        // 5v5 Custom mode: show both Reroll and Proceed to Draft buttons
+        rerollBtn.classList.remove('hidden');
         proceedToDraftBtn.classList.remove('hidden');
     } else {
         // 5man mode: show Reroll button, hide Draft buttons
