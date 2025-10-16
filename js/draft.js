@@ -1,5 +1,5 @@
+
 // --- DRAFT UI MODULE ---
-import { socket, fetchChampionList, roomId, playerName, sendSocketMessage } from './app.js';
 
 // --- STATE ---
 let champions = []; // Array of {id, name, image}
@@ -13,6 +13,41 @@ let gameState = {
     bluePicks: [],
     redPicks: []
 };
+let fearlessDraftEnabled = false;
+let fearlessUsedChampions = new Set(JSON.parse(localStorage.getItem('fearlessUsedChampions')) || []);
+
+// --- CHAMPION API ---
+/**
+ * Fetches the list of champions from the Data Dragon API
+ * @returns {Promise<Array>} - Array of champion objects or empty array
+ */
+async function fetchChampionList() {
+    try {
+        const versionsResponse = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+        if (!versionsResponse.ok) {
+            throw new Error(`Failed to fetch versions: ${versionsResponse.status}`);
+        }
+        const versions = await versionsResponse.json();
+        const latestVersion = versions[0];
+
+        const response = await fetch(`https://ddragon.leagueoflegends.com/cdn/${latestVersion}/data/en_US/champion.json`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch champions: ${response.status}`);
+        }
+        const championsData = await response.json();
+        const baseUrl = `https://ddragon.leagueoflegends.com/cdn/${latestVersion}/img/champion/`;
+        const championArray = Object.values(championsData.data).map(champ => ({
+            id: champ.id,
+            name: champ.name,
+            image: baseUrl + champ.image.full
+        }));
+        console.log('Champions loaded:', championArray.length, 'champions');
+        return championArray;
+    } catch (error) {
+        console.error('Error fetching champions:', error);
+        return [];
+    }
+}
 
 /**
  * Finds a champion by name
@@ -56,12 +91,9 @@ export function renderChampionGrid(championList) {
         img.src = champ.image;
         img.alt = champ.name;
         img.className = 'champion-portrait';
-        // Note: crossOrigin removed - Data Dragon CDN doesn't require CORS for images
 
-        // Add error handling for image loading
         img.onerror = () => {
             console.error(`Failed to load image for ${champ.name}: ${champ.image}`);
-            // Fallback: show champion name with styled background
             img.style.display = 'none';
             championCard.style.backgroundColor = 'rgba(26, 39, 58, 0.8)';
             championCard.style.display = 'flex';
@@ -79,7 +111,6 @@ export function renderChampionGrid(championList) {
         grid.appendChild(championCard);
     });
 
-    // Update disabled state
     updateChampionGridAvailability();
 }
 
@@ -88,27 +119,75 @@ export function renderChampionGrid(championList) {
  * @param {string} championName - Name of the clicked champion
  */
 function handleChampionClick(championName) {
-    // Send action to server via WebSocket with the correct format
-    const message = {
-        type: gameState.currentAction, // Use 'type' to match server expectation
-        champion: championName,
-        playerName: playerName
-    };
+    if (gameState.phase !== 'drafting') return;
 
-    sendSocketMessage(message);
-    console.log('Sent to server:', message);
+    const isUnavailable = [...gameState.blueBans, ...gameState.redBans, ...gameState.bluePicks, ...gameState.redPicks].includes(championName);
+    if (isUnavailable) {
+        alert('Champion is already picked or banned.');
+        return;
+    }
+
+    if (fearlessDraftEnabled && fearlessUsedChampions.has(championName)) {
+        alert('Champion has been picked in a previous draft in this session.');
+        return;
+    }
+
+    if (gameState.currentAction === 'ban') {
+        if (gameState.currentTeam === 'blue') {
+            gameState.blueBans.push(championName);
+        } else {
+            gameState.redBans.push(championName);
+        }
+    } else if (gameState.currentAction === 'pick') {
+        if (gameState.currentTeam === 'blue') {
+            gameState.bluePicks.push(championName);
+        } else {
+            gameState.redPicks.push(championName);
+        }
+        if (fearlessDraftEnabled) {
+            fearlessUsedChampions.add(championName);
+            localStorage.setItem('fearlessUsedChampions', JSON.stringify(Array.from(fearlessUsedChampions)));
+        }
+    }
+
+    advanceDraft();
+    updateDraftUI();
+}
+
+/**
+ * Advances the draft to the next state
+ */
+function advanceDraft() {
+    const draftOrder = [
+        { action: 'ban', team: 'blue' }, { action: 'ban', team: 'red' },
+        { action: 'ban', team: 'blue' }, { action: 'ban', team: 'red' },
+        { action: 'ban', team: 'blue' }, { action: 'ban', team: 'red' },
+        { action: 'pick', team: 'blue' }, { action: 'pick', team: 'red' },
+        { action: 'pick', team: 'red' }, { action: 'pick', team: 'blue' },
+        { action: 'pick', team: 'blue' }, { action: 'pick', team: 'red' },
+        { action: 'ban', team: 'red' }, { action: 'ban', team: 'blue' },
+        { action: 'ban', team: 'red' }, { action: 'ban', team: 'blue' },
+        { action: 'pick', team: 'red' }, { action: 'pick', team: 'blue' },
+        { action: 'pick', team: 'blue' }, { action: 'pick', team: 'red' },
+    ];
+
+    const totalActions = gameState.blueBans.length + gameState.redBans.length + gameState.bluePicks.length + gameState.redPicks.length;
+
+    if (totalActions < draftOrder.length) {
+        const nextAction = draftOrder[totalActions];
+        gameState.currentAction = nextAction.action;
+        gameState.currentTeam = nextAction.team;
+    } else {
+        gameState.phase = 'complete';
+        gameState.currentAction = null;
+        gameState.currentTeam = null;
+    }
 }
 
 /**
  * Updates the draft UI based on the current game state
- * @param {Object} newGameState - The updated game state from server
  */
-export function updateDraftUI(newGameState) {
-    if (newGameState) {
-        gameState = { ...gameState, ...newGameState };
-    }
-
-    // Update draft status
+export function updateDraftUI() {
     const statusElement = document.getElementById('draft-status');
     const phaseElement = document.getElementById('draft-phase-indicator');
 
@@ -116,116 +195,35 @@ export function updateDraftUI(newGameState) {
         statusElement.textContent = 'Draft Complete!';
         phaseElement.textContent = 'COMPLETE';
     } else if (gameState.phase === 'drafting') {
-        // Build status text based on current team and action
         const teamText = gameState.currentTeam === 'blue' ? 'Blue Team' : 'Red Team';
         const actionText = gameState.currentAction === 'ban' ? 'Banning' : 'Picking';
         statusElement.textContent = `${teamText} ${actionText}...`;
 
-        // Determine phase based on ban/pick counts
-        const totalBans = (gameState.blueBans || []).length + (gameState.redBans || []).length;
-        const totalPicks = (gameState.bluePicks || []).length + (gameState.redPicks || []).length;
+        const totalActions = gameState.blueBans.length + gameState.redBans.length + gameState.bluePicks.length + gameState.redPicks.length;
 
-        if (totalBans < 6) {
+        if (totalActions < 6) {
             phaseElement.textContent = 'BAN PHASE 1';
-        } else if (totalPicks < 6) {
+        } else if (totalActions < 12) {
             phaseElement.textContent = 'PICK PHASE 1';
-        } else if (totalBans < 10) {
+        } else if (totalActions < 16) {
             phaseElement.textContent = 'BAN PHASE 2';
         } else {
             phaseElement.textContent = 'PICK PHASE 2';
         }
     } else {
-        // Idle or waiting state
         statusElement.textContent = 'Waiting for draft to begin...';
         phaseElement.textContent = 'IDLE';
     }
 
-    // Update Bravery Mode toggle
-    const braveryToggle = document.getElementById('bravery-mode-checkbox');
-    const braveryContainer = document.getElementById('bravery-mode-toggle-container');
-    const braveryResetBtn = document.getElementById('reset-bravery-session-btn');
-
-    if (braveryToggle && newGameState && typeof newGameState.isBraveryMode !== 'undefined') {
-        braveryToggle.checked = newGameState.isBraveryMode;
-    }
-
-    // Only show bravery mode controls to host
-    if (braveryContainer && braveryToggle && braveryResetBtn) {
-        const isHost = gameState.hostName === playerName;
-
-        if (isHost) {
-            // Enable controls for host
-            braveryToggle.disabled = false;
-            braveryResetBtn.disabled = false;
-            braveryContainer.style.opacity = '1';
-            braveryContainer.title = '';
-        } else {
-            // Disable controls for non-hosts
-            braveryToggle.disabled = true;
-            braveryResetBtn.disabled = true;
-            braveryContainer.style.opacity = '0.5';
-            braveryContainer.title = 'Only the host can toggle Bravery Mode';
-        }
-    }
-
-    // Update player lists
-    updatePlayerList('blue', gameState.bluePlayers || []);
-    updatePlayerList('red', gameState.redPlayers || []);
-
-    // Update bans (5 slots per team, horizontal)
     updateBanDisplay('blue', gameState.blueBans);
     updateBanDisplay('red', gameState.redBans);
-
-    // Update picks (5 slots per team, vertical)
     updatePickDisplay('blue', gameState.bluePicks);
     updatePickDisplay('red', gameState.redPicks);
-
-    // Update champion grid (disable picked/banned champions)
     updateChampionGridAvailability();
 }
 
 /**
- * Updates the player list for a team
- * @param {string} team - 'blue' or 'red'
- * @param {string[]} players - Array of player names
- */
-function updatePlayerList(team, players) {
-    const playerContainer = document.getElementById(`${team}-team-players`);
-    if (!playerContainer) {
-        console.warn(`Player container for ${team} team not found`);
-        return;
-    }
-
-    const captain = team === 'blue' ? gameState.blueCaptain : gameState.redCaptain;
-    playerContainer.innerHTML = '<h3>Players</h3>';
-    const ul = document.createElement('ul');
-
-    // Ensure players is an array
-    const playerArray = Array.isArray(players) ? players : [];
-
-    if (playerArray.length === 0) {
-        const li = document.createElement('li');
-        li.textContent = 'No players yet';
-        li.style.fontStyle = 'italic';
-        li.style.opacity = '0.6';
-        ul.appendChild(li);
-    } else {
-        playerArray.forEach(player => {
-            const li = document.createElement('li');
-            li.textContent = player;
-            if (player === captain) {
-                li.textContent += ' (C)';
-            }
-            ul.appendChild(li);
-        });
-    }
-
-    playerContainer.appendChild(ul);
-    console.log(`Updated ${team} team players:`, playerArray);
-}
-
-/**
- * Updates the ban display for a team (horizontal with images)
+ * Updates the ban display for a team
  * @param {string} team - 'blue' or 'red'
  * @param {string[]} bans - Array of banned champion names
  */
@@ -269,7 +267,7 @@ function updateBanDisplay(team, bans) {
 }
 
 /**
- * Updates the pick display for a team (vertical with large images)
+ * Updates the pick display for a team
  * @param {string} team - 'blue' or 'red'
  * @param {string[]} picks - Array of picked champion names
  */
@@ -339,23 +337,17 @@ function updatePickDisplay(team, picks) {
 function updateChampionGridAvailability() {
     const allBans = [...gameState.blueBans, ...gameState.redBans];
     const allPicks = [...gameState.bluePicks, ...gameState.redPicks];
-    const braveryUsed = gameState.braveryModeUsedChampions || [];
-    const unavailable = new Set([...allBans, ...allPicks, ...braveryUsed]);
+    const unavailable = new Set([...allBans, ...allPicks]);
+
+    if (fearlessDraftEnabled) {
+        fearlessUsedChampions.forEach(champ => unavailable.add(champ));
+    }
 
     const championCards = document.querySelectorAll('.champion-card-league');
-    const isMyTurnToBan = (gameState.currentAction === 'ban' &&
-                           ((gameState.currentTeam === 'blue' && playerName === gameState.blueCaptain) ||
-                            (gameState.currentTeam === 'red' && playerName === gameState.redCaptain)));
-
-    const isMyTurnToPick = (gameState.currentAction === 'pick' &&
-                           ((gameState.currentTeam === 'blue' && playerName === gameState.blueCaptain) ||
-                            (gameState.currentTeam === 'red' && playerName === gameState.redCaptain)));
 
     championCards.forEach(card => {
         const championName = card.dataset.champion;
-        if (unavailable.has(championName) ||
-            (gameState.currentAction === 'ban' && !isMyTurnToBan) ||
-            (gameState.currentAction === 'pick' && !isMyTurnToPick)) {
+        if (unavailable.has(championName)) {
             card.classList.add('disabled');
         } else {
             card.classList.remove('disabled');
@@ -367,42 +359,54 @@ function updateChampionGridAvailability() {
  * Initializes the draft UI
  */
 export async function initializeDraft() {
-    console.log('Initializing tournament draft... roomId:', roomId);
+    console.log('Initializing single-user draft...');
 
-    // Fetch initial draft state
-    try {
-        if (!roomId) {
-            console.warn('roomId is null, skipping initial state fetch');
-        } else {
-            const response = await fetch(`/api/draft/${roomId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const initialState = await response.json();
-            updateDraftUI(initialState);
-        }
-    } catch (error) {
-        console.error('Could not fetch initial draft state:', error);
-    }
+    gameState = {
+        phase: 'idle',
+        currentTeam: 'blue',
+        currentAction: 'ban',
+        blueBans: [],
+        redBans: [],
+        bluePicks: [],
+        redPicks: []
+    };
 
-    // Fetch champions if not already loaded
     if (champions.length === 0) {
-        const rawChampions = await fetchChampionList();
-        // Ensure data is in the correct {id, name, image} format
-        champions = rawChampions.map(champ => ({
-            id: champ.id,
-            name: champ.name,
-            image: champ.image
-        }));
+        champions = await fetchChampionList();
         filteredChampions = [...champions];
     }
 
-    // Render the champion grid
     renderChampionGrid(filteredChampions);
-
-    // Initialize search
     initializeChampionSearch();
-
-    // Initialize UI
+    initializeFearlessDraft();
+    
+    gameState.phase = 'drafting';
+    advanceDraft();
     updateDraftUI();
+}
+
+function initializeFearlessDraft() {
+    const fearlessToggle = document.getElementById('fearless-draft-checkbox');
+    const fearlessResetBtn = document.getElementById('reset-fearless-session-btn');
+    const fearlessLabel = document.getElementById('fearless-draft-label-text');
+
+    fearlessToggle.checked = fearlessDraftEnabled;
+    fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
+    fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
+
+
+    fearlessToggle.addEventListener('change', (e) => {
+        fearlessDraftEnabled = e.target.checked;
+        fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
+        fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
+        updateChampionGridAvailability();
+    });
+
+    fearlessResetBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to reset the Fearless Draft session? This will clear all used champions.')) {
+            fearlessUsedChampions.clear();
+            localStorage.removeItem('fearlessUsedChampions');
+            updateChampionGridAvailability();
+        }
+    });
 }

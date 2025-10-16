@@ -8,10 +8,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://ddragon.leagueoflegends.com http://ddragon.leagueoflegends.com https://*.dev-sushi.com http://*.dev-sushi.com; connect-src 'self' ws://localhost:* wss://localhost:* ws://*.dev-sushi.com wss://*.dev-sushi.com https://ddragon.leagueoflegends.com http://ddragon.leagueoflegends.com; font-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://ddragon.leagueoflegends.com; connect-src 'self' https://ddragon.leagueoflegends.com; font-src 'self';">
     <title>League of Legends Team Randomizer</title>
     <link rel="icon" type="image/png" href="images/roles/flavicon.png">
-    <link rel="stylesheet" href="css/styles.css?v=9">
+    <link rel="stylesheet" href="css/styles.css?v=10">
 </head>
 <body>
     <main id="app">
@@ -43,8 +43,6 @@
                     <span class="switch-label-text">Draft Pick</span>
                 </label>
             </div>
-
-
 
             <!-- Stage 1: Parse Lobby Chat -->
             <section id="stage-one-parse" class="stage-content" aria-labelledby="stage-one-heading">
@@ -104,19 +102,6 @@
                 </div>
             </section>
 
-            <!-- Stage 5: Team Selection -->
-            <section id="stage-five-team-selection" class="stage-content hidden" aria-labelledby="stage-five-heading">
-                <h2 id="stage-five-heading">Join Draft</h2>
-                <div class="form-group">
-                    <label for="player-name-input">Enter your name:</label>
-                    <input type="text" id="player-name-input" placeholder="Your Name">
-                </div>
-                <div class="button-group">
-                    <button id="join-blue-team-btn" class="btn btn-primary">Join Blue Team</button>
-                    <button id="join-red-team-btn" class="btn btn-primary" style="background: var(--red-accent);">Join Red Team</button>
-                </div>
-            </section>
-
             <!-- Stage 4: Tournament Draft -->
             <section id="stage-four-draft" class="stage-content hidden" aria-labelledby="stage-four-heading">
                 <h2 id="stage-four-heading" class="visually-hidden">Step 4: Tournament Draft</h2>
@@ -130,21 +115,11 @@
                 <!-- Bans Row (Horizontal) -->
                 <div class="bans-row">
                     <div class="team-bans blue-bans">
-                        <div class="team-label blue-label">
-                            BLUE SIDE
-                            <button id="share-blue-link-btn" class="share-link-btn" title="Copy Blue Team Link">
-                                <span class="btn-icon">🔗</span>
-                            </button>
-                        </div>
+                        <div class="team-label blue-label">BLUE SIDE</div>
                         <div id="blue-team-bans" class="ban-list-horizontal"></div>
                     </div>
                     <div class="team-bans red-bans">
-                        <div class="team-label red-label">
-                            RED SIDE
-                            <button id="share-red-link-btn" class="share-link-btn" title="Copy Red Team Link">
-                                <span class="btn-icon">🔗</span>
-                            </button>
-                        </div>
+                        <div class="team-label red-label">RED SIDE</div>
                         <div id="red-team-bans" class="ban-list-horizontal"></div>
                     </div>
                 </div>
@@ -153,24 +128,22 @@
                 <div class="draft-main-area">
                     <!-- Blue Team Picks (Left Side) -->
                     <div class="team-picks-column blue-picks-column">
-                        <div id="blue-team-players" class="player-list"></div>
                         <div id="blue-team-picks" class="picks-vertical"></div>
                     </div>
 
                     <!-- Champion Selection Pool (Center) -->
                     <div class="champion-selection-center">
-                        <!-- Bravery Mode and Controls -->
                         <div class="draft-controls">
-                            <!-- Bravery Mode Toggle -->
-                            <div id="bravery-mode-toggle-container" class="switch-container" role="group" aria-label="Bravery mode selection">
-                                <label for="bravery-mode-checkbox" class="switch-label">
-                                    <span id="bravery-mode-label-text" class="switch-label-text">Fearless Draft</span>
+                            <!-- Fearless Draft Toggle -->
+                            <div id="fearless-draft-toggle-container" class="switch-container" role="group" aria-label="Fearless draft selection">
+                                <label for="fearless-draft-checkbox" class="switch-label">
+                                    <span id="fearless-draft-label-text" class="switch-label-text">Fearless Draft</span>
                                 </label>
                                 <div class="switch">
-                                    <input type="checkbox" id="bravery-mode-checkbox" role="switch" aria-checked="false">
+                                    <input type="checkbox" id="fearless-draft-checkbox" role="switch" aria-checked="false">
                                     <span class="slider" aria-hidden="true"></span>
                                 </div>
-                                <button id="reset-bravery-session-btn" type="button" class="btn btn-secondary hidden">Reset Session</button>
+                                <button id="reset-fearless-session-btn" type="button" class="btn btn-secondary hidden">Reset Session</button>
                             </div>
 
                             <!-- Draft Controls -->
@@ -183,10 +156,8 @@
                                     <span class="btn-icon" aria-hidden="true">✏️</span>
                                     <span class="btn-text">Edit Players</span>
                                 </button>
-                                <button id="begin-draft-btn" type="button" class="btn btn-primary">Begin Draft</button>
+                                
                             </div>
-
-
 
                             <!-- Champion Search -->
                             <div class="search-container">
@@ -200,7 +171,6 @@
 
                     <!-- Red Team Picks (Right Side) -->
                     <div class="team-picks-column red-picks-column">
-                        <div id="red-team-players" class="player-list"></div>
                         <div id="red-team-picks" class="picks-vertical"></div>
                     </div>
                 </div>
@@ -208,6 +178,6 @@
         </div>
     </main>
 
-    <script type="module" src="js/app.js?v=9"></script>
+    <script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

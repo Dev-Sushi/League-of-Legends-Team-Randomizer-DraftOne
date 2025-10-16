@@ -10,17 +10,15 @@ export function showStage(stage) {
     const stageTwoDiv = document.getElementById('stage-two-configure');
     const stageThreeDiv = document.getElementById('stage-three-display');
     const stageFourDiv = document.getElementById('stage-four-draft');
-    const stageFiveDiv = document.getElementById('stage-five-team-selection');
     const instructionsText = document.getElementById('instructions-text');
     const modeToggle = document.getElementById('mode-toggle');
 
-    const stages = [stageOneDiv, stageTwoDiv, stageThreeDiv, stageFourDiv, stageFiveDiv];
+    const stages = [stageOneDiv, stageTwoDiv, stageThreeDiv, stageFourDiv];
     const stageInstructions = {
         1: "Paste your lobby chat below to get the list of players.",
         2: "Select the roles each player can play, then randomize the teams.",
         3: "The teams are set! Reroll or edit the player list below.",
         4: "Draft your champions! Click on a champion to ban or pick.",
-        5: "Choose your team and enter your name to join the draft."
     };
 
     instructionsText.innerHTML = stageInstructions[stage] || "";
@@ -33,9 +31,9 @@ export function showStage(stage) {
         }
     });
 
-    // Hide mode toggle on draft screen (stage 4 and 5)
+    // Hide mode toggle on draft screen (stage 4)
     if (modeToggle) {
-        if (stage === 4 || stage === 5) {
+        if (stage === 4) {
             modeToggle.classList.add('hidden');
         } else {
             modeToggle.classList.remove('hidden');
@@ -51,24 +49,20 @@ export function renderConfigUI() {
     const playerPool = getPlayerPool();
     const ALL_ROLES = getAllRoles();
 
-    // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
 
     playerPool.forEach(player => {
         const row = document.createElement('div');
         row.className = 'player-config-row';
 
-        // Create player name span
         const nameSpan = document.createElement('span');
         nameSpan.className = 'player-name';
         nameSpan.textContent = player.name;
 
-        // Create role selector container
         const roleSelector = document.createElement('div');
         roleSelector.className = 'role-selector';
-        roleSelector.dataset.playerName = player.name; // Set data attribute safely
+        roleSelector.dataset.playerName = player.name;
 
-        // Create role buttons
         ALL_ROLES.forEach(role => {
             const button = document.createElement('button');
             button.className = 'role-button' + (player.roles.includes(role) ? ' selected' : '');
@@ -82,13 +76,11 @@ export function renderConfigUI() {
             roleSelector.appendChild(button);
         });
 
-        // Create remove button
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-player-btn';
-        removeBtn.dataset.playerName = player.name; // Set data attribute safely
+        removeBtn.dataset.playerName = player.name;
         removeBtn.innerHTML = '&times;';
 
-        // Assemble the row
         row.appendChild(nameSpan);
         row.appendChild(roleSelector);
         row.appendChild(removeBtn);
@@ -97,17 +89,6 @@ export function renderConfigUI() {
 
     playerConfigContainer.innerHTML = '';
     playerConfigContainer.appendChild(fragment);
-}
-
-/**
- * Escapes HTML to prevent XSS
- * @param {string} str - String to escape
- * @returns {string} - Escaped string
- */
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 /**
