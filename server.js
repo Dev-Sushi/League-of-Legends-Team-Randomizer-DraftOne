@@ -78,6 +78,8 @@ function createNewRoom(roomId) {
         redPlayer: null,     // WebSocket connection
         bluePlayerName: null,
         redPlayerName: null,
+        blueTeamRoles: null, // Map of playerName -> role for blue team
+        redTeamRoles: null,  // Map of playerName -> role for red team
         spectators: [],      // Array of { ws, name } objects
         host: null,          // WebSocket connection of room creator
         createdAt: Date.now()
@@ -261,6 +263,8 @@ wss.on('connection', (ws) => {
                         fearlessDraftEnabled: room.fearlessDraftEnabled,
                         bluePlayerName: room.bluePlayerName,
                         redPlayerName: room.redPlayerName,
+                        blueTeamRoles: room.blueTeamRoles,
+                        redTeamRoles: room.redTeamRoles,
                         spectators: room.spectators.map(s => s.name)
                     }));
 
@@ -304,7 +308,9 @@ wss.on('connection', (ws) => {
                             type: 'room_update',
                             bluePlayerName: room.bluePlayerName,
                             redPlayerName: room.redPlayerName,
-                            spectators: room.spectators.map(s => s.name)
+                            spectators: room.spectators.map(s => s.name),
+                            blueTeamRoles: room.blueTeamRoles,
+                            redTeamRoles: room.redTeamRoles
                         }, ws);
                     } else {
                         // Both teams full, join as spectator
@@ -320,7 +326,9 @@ wss.on('connection', (ws) => {
                             type: 'room_update',
                             bluePlayerName: room.bluePlayerName,
                             redPlayerName: room.redPlayerName,
-                            spectators: room.spectators.map(s => s.name)
+                            spectators: room.spectators.map(s => s.name),
+                            blueTeamRoles: room.blueTeamRoles,
+                            redTeamRoles: room.redTeamRoles
                         }, ws);
                     }
 
@@ -335,6 +343,8 @@ wss.on('connection', (ws) => {
                         fearlessDraftEnabled: room.fearlessDraftEnabled,
                         bluePlayerName: room.bluePlayerName,
                         redPlayerName: room.redPlayerName,
+                        blueTeamRoles: room.blueTeamRoles,
+                        redTeamRoles: room.redTeamRoles,
                         spectators: room.spectators.map(s => s.name)
                     }));
 
@@ -569,6 +579,39 @@ wss.on('connection', (ws) => {
                     }, ws);
 
                     console.log(`Player ${playerName} switched to ${newTeam} team in room ${currentRoom.id}${isHost ? ' (host)' : ''}`);
+                    break;
+                }
+
+                case 'update_role_assignments': {
+                    if (!currentRoom) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'Not in a room'
+                        }));
+                        break;
+                    }
+
+                    // Only host can update role assignments
+                    if (ws !== currentRoom.host) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'Only the host can update role assignments'
+                        }));
+                        break;
+                    }
+
+                    // Store role assignments (convert from array format to object for storage)
+                    currentRoom.blueTeamRoles = data.blueTeamRoles;
+                    currentRoom.redTeamRoles = data.redTeamRoles;
+
+                    // Broadcast to all players in the room
+                    broadcastToRoom(currentRoom, {
+                        type: 'role_assignments_updated',
+                        blueTeamRoles: currentRoom.blueTeamRoles,
+                        redTeamRoles: currentRoom.redTeamRoles
+                    });
+
+                    console.log(`Role assignments updated in room ${currentRoom.id}`);
                     break;
                 }
 

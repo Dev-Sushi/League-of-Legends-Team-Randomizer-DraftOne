@@ -10,6 +10,8 @@ let playerName = 'Player';
 let onDraftUpdateCallback = null;
 let onRoomStatusCallback = null;
 let onRoomUpdateCallback = null;
+let onRoleAssignmentsUpdateCallback = null;
+let pendingRoleAssignments = null; // Store role assignments received before callback is registered
 
 /**
  * Initialize multiplayer module
@@ -94,12 +96,28 @@ function handleServerMessage(data) {
                     spectators: data.spectators || []
                 });
             }
+            // Update role assignments if present
+            if (data.blueTeamRoles || data.redTeamRoles) {
+                if (onRoleAssignmentsUpdateCallback) {
+                    onRoleAssignmentsUpdateCallback({
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    });
+                } else {
+                    // Store for later when callback is registered
+                    pendingRoleAssignments = {
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    };
+                }
+            }
             break;
 
         case 'room_joined':
             currentRoomCode = data.roomCode;
             currentTeam = data.team;
             isHost = data.isHost || false;
+            console.log('Room joined - role assignments received:', data.blueTeamRoles, data.redTeamRoles);
             updateRoomUI(data.roomCode, data.team, true);
             if (onDraftUpdateCallback) {
                 onDraftUpdateCallback(data.draftState, data.team);
@@ -114,6 +132,25 @@ function handleServerMessage(data) {
                     redPlayerName: data.redPlayerName,
                     spectators: data.spectators || []
                 });
+            }
+            // Update role assignments if present
+            if (data.blueTeamRoles || data.redTeamRoles) {
+                console.log('Processing role assignments, callback registered:', !!onRoleAssignmentsUpdateCallback);
+                if (onRoleAssignmentsUpdateCallback) {
+                    onRoleAssignmentsUpdateCallback({
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    });
+                } else {
+                    // Store for later when callback is registered
+                    console.log('Storing pending role assignments for later');
+                    pendingRoleAssignments = {
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    };
+                }
+            } else {
+                console.log('No role assignments in room_joined message');
             }
             break;
 
@@ -183,6 +220,21 @@ function handleServerMessage(data) {
                     spectators: data.spectators
                 });
             }
+            // Update role assignments if present
+            if (data.blueTeamRoles || data.redTeamRoles) {
+                if (onRoleAssignmentsUpdateCallback) {
+                    onRoleAssignmentsUpdateCallback({
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    });
+                } else {
+                    // Store for later when callback is registered
+                    pendingRoleAssignments = {
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    };
+                }
+            }
             break;
 
         case 'player_disconnected':
@@ -195,6 +247,15 @@ function handleServerMessage(data) {
             }
             const teamLabel = data.team === 'spectator' ? 'Spectator' : data.team.charAt(0).toUpperCase() + data.team.slice(1) + ' Team';
             showNotification(`${teamLabel} player disconnected`, 'warning');
+            break;
+
+        case 'role_assignments_updated':
+            if (onRoleAssignmentsUpdateCallback) {
+                onRoleAssignmentsUpdateCallback({
+                    blueTeamRoles: data.blueTeamRoles,
+                    redTeamRoles: data.redTeamRoles
+                });
+            }
             break;
 
         case 'error':
@@ -298,6 +359,17 @@ export function toggleFearlessDraft(enabled) {
 export function resetFearlessSession() {
     sendMessage({
         type: 'reset_fearless'
+    });
+}
+
+/**
+ * Update role assignments for both teams
+ */
+export function updateRoleAssignments(blueTeamRoles, redTeamRoles) {
+    sendMessage({
+        type: 'update_role_assignments',
+        blueTeamRoles: blueTeamRoles,
+        redTeamRoles: redTeamRoles
     });
 }
 
@@ -501,6 +573,20 @@ export function onRoomStatus(callback) {
  */
 export function onRoomUpdate(callback) {
     onRoomUpdateCallback = callback;
+}
+
+/**
+ * Register callback for role assignments updates
+ */
+export function onRoleAssignmentsUpdate(callback) {
+    onRoleAssignmentsUpdateCallback = callback;
+
+    // If we have pending role assignments, send them now
+    if (pendingRoleAssignments) {
+        console.log('Sending pending role assignments to callback');
+        callback(pendingRoleAssignments);
+        pendingRoleAssignments = null;
+    }
 }
 
 /**
