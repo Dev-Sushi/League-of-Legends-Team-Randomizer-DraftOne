@@ -408,25 +408,65 @@ function initializeEventListeners() {
         });
     }
 
-    const copyDraftBtn = document.getElementById('copy-draft-btn');
-    if (copyDraftBtn) {
-        copyDraftBtn.addEventListener('click', () => {
-            const { blueBans, redBans, bluePicks, redPicks } = getGameState();
+    const rerandomizeTeamsBtn = document.getElementById('rerandomize-teams-btn');
+    if (rerandomizeTeamsBtn) {
+        rerandomizeTeamsBtn.addEventListener('click', () => {
+            // In multiplayer mode, only host can re-randomize
+            if (Multiplayer.isInMultiplayerMode()) {
+                const isHost = Multiplayer.getIsHost();
+                if (!isHost) {
+                    alert('Only the host can re-randomize teams');
+                    return;
+                }
+            }
 
-            const formatTeam = (teamName, picks, bans) => {
-                const pickText = picks.length > 0 ? picks.join(', ') : 'None';
-                const banText = bans.length > 0 ? bans.join(', ') : 'None';
-                return `${teamName}\nPicks: ${pickText}\nBans: ${banText}`;
-            };
+            // Get current player pool (with their role preferences)
+            const players = getPlayerPool();
+            if (players.length === 0) {
+                alert('No players available to randomize');
+                return;
+            }
 
-            const draftText = `${formatTeam('Blue Team', bluePicks, blueBans)}\n\n${formatTeam('Red Team', redPicks, redBans)}`;
+            // Re-run randomization with same players and role preferences
+            const mode = getRandomizerMode();
+            const validation = validatePlayerCount(players.length, mode);
+            if (!validation.valid) {
+                alert(validation.message);
+                return;
+            }
 
-            navigator.clipboard.writeText(draftText).then(() => {
-                alert('Draft copied to clipboard!');
-            }).catch(err => {
-                console.error('Failed to copy draft:', err);
-                alert('Failed to copy draft. Please check the console for details.');
-            });
+            // Shuffle players using Fisher-Yates algorithm
+            const shuffledPlayers = shuffleArray(players);
+
+            if (mode === '5v5') {
+                // For 5v5 mode, split players into two teams
+                const midPoint = Math.ceil(shuffledPlayers.length / 2);
+                const team1 = shuffledPlayers.slice(0, midPoint);
+                const team2 = shuffledPlayers.slice(midPoint);
+
+                // Save team assignments with role assignments for draft screen
+                const team1RoleAssignments = solveRoleAssignment(team1);
+                const team2RoleAssignments = solveRoleAssignment(team2);
+
+                setTeamAssignments({
+                    blueTeam: team1RoleAssignments,
+                    redTeam: team2RoleAssignments
+                });
+
+                // Update role assignments in multiplayer if applicable
+                if (Multiplayer.isInMultiplayerMode()) {
+                    const blueTeamRoles = team1RoleAssignments ?
+                        Object.fromEntries(team1RoleAssignments) : null;
+                    const redTeamRoles = team2RoleAssignments ?
+                        Object.fromEntries(team2RoleAssignments) : null;
+
+                    Multiplayer.updateRoleAssignments(blueTeamRoles, redTeamRoles);
+                }
+
+                alert('Teams have been re-randomized! The draft will restart with new team assignments.');
+            } else {
+                alert('Re-randomization is only available in 5v5 Draft mode');
+            }
         });
     }
 
