@@ -1,5 +1,5 @@
 // --- MAIN APPLICATION LOGIC ---
-import { setPlayerPool, getPlayerPool, setRandomizerMode, getRandomizerMode, applyRolePreferences, setTeamAssignments } from './state.js';
+import { setPlayerPool, getPlayerPool, setRandomizerMode, getRandomizerMode, applyRolePreferences, setTeamAssignments, getTeamAssignments } from './state.js';
 import { parseLobbyChat, saveLobbyToStorage, loadLobbyFromStorage } from './parser.js';
 import { shuffleArray, validatePlayerCount, solveRoleAssignment } from './randomizer.js';
 import { showStage, renderConfigUI, setupConfigUIEventListeners } from './ui.js';
@@ -130,6 +130,18 @@ async function createMultiplayerRoom() {
     if (success) {
         try {
             await initializeDraft('multiplayer', 'blue');
+
+            // Send role assignments to the server if available
+            const teamAssignments = getTeamAssignments();
+            if (teamAssignments) {
+                // Convert Map to object for JSON serialization
+                const blueTeamRoles = teamAssignments.blueTeam ?
+                    Object.fromEntries(teamAssignments.blueTeam) : null;
+                const redTeamRoles = teamAssignments.redTeam ?
+                    Object.fromEntries(teamAssignments.redTeam) : null;
+
+                Multiplayer.updateRoleAssignments(blueTeamRoles, redTeamRoles);
+            }
         } catch (error) {
             console.error('Failed to initialize draft:', error);
             alert('Failed to initialize draft. Please check the console for details.');

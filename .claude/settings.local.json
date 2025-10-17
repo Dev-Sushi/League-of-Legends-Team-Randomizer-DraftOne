@@ -4,7 +4,13 @@
       "Bash(git commit:*)",
       "WebFetch(domain:draftlol.dawe.gg)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(node server.js)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(del nul)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

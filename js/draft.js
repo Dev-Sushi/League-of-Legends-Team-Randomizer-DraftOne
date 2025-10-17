@@ -2,7 +2,7 @@
 
 import { preloadSounds, playBanSound, playPickSound, playChampionHoverSound, playPhaseSound } from './sounds.js';
 import * as Multiplayer from './multiplayer.js';
-import { getTeamAssignments, getAllRoles } from './state.js';
+import { getTeamAssignments, getAllRoles, setTeamAssignments } from './state.js';
 
 // --- STATE ---
 let champions = []; // Array of {id, name, image, tags}
@@ -543,6 +543,37 @@ export async function initializeDraft(mode = 'solo', team = null) {
                 }
             }
         });
+
+        // Setup role assignments update callback
+        Multiplayer.onRoleAssignmentsUpdate((data) => {
+            console.log('Received role assignments update:', data);
+            // Convert received objects back to Maps
+            const blueTeamRoles = data.blueTeamRoles ? new Map(Object.entries(data.blueTeamRoles)) : null;
+            const redTeamRoles = data.redTeamRoles ? new Map(Object.entries(data.redTeamRoles)) : null;
+
+            setTeamAssignments({
+                blueTeam: blueTeamRoles,
+                redTeam: redTeamRoles
+            });
+
+            // Update the UI to reflect the new role assignments
+            updateDraftUI();
+        });
+
+        // Check if there were initial role assignments sent before callback was registered
+        document.addEventListener('initialRoleAssignments', (e) => {
+            console.log('Received initial role assignments:', e.detail);
+            const blueTeamRoles = e.detail.blueTeamRoles ? new Map(Object.entries(e.detail.blueTeamRoles)) : null;
+            const redTeamRoles = e.detail.redTeamRoles ? new Map(Object.entries(e.detail.redTeamRoles)) : null;
+
+            setTeamAssignments({
+                blueTeam: blueTeamRoles,
+                redTeam: redTeamRoles
+            });
+
+            // Update the UI to reflect the new role assignments
+            updateDraftUI();
+        }, { once: true });
     } else {
         // Solo mode: start draft immediately
         gameState.phase = 'drafting';
