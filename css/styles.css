@@ -2038,6 +2038,13 @@ body.red-turn {
     transform: scale(1.2);
 }
 
+.badges-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .team-badge {
     padding: 8px 16px;
     border-radius: 6px;
@@ -2060,6 +2067,19 @@ body.red-turn {
     background: linear-gradient(135deg, var(--red-accent) 0%, #c83832 100%);
     color: #ffffff;
     box-shadow: 0 0 15px rgba(230, 69, 61, 0.4);
+}
+
+.host-badge {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+    background: linear-gradient(135deg, var(--gold-accent) 0%, #d4af37 100%);
+    color: var(--bg-dark-primary);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    border: 1px solid rgba(255, 215, 0, 0.8);
 }
 
 .connection-status {

@@ -258,7 +258,10 @@ wss.on('connection', (ws) => {
                         team: 'blue',
                         isHost: true,
                         draftState: room.draftState,
-                        fearlessDraftEnabled: room.fearlessDraftEnabled
+                        fearlessDraftEnabled: room.fearlessDraftEnabled,
+                        bluePlayerName: room.bluePlayerName,
+                        redPlayerName: room.redPlayerName,
+                        spectators: room.spectators.map(s => s.name)
                     }));
 
                     console.log(`Room ${roomCode} created by ${room.bluePlayerName} (blue team)`);
@@ -339,11 +342,11 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
-                    // Only blue player (room creator) can start draft
-                    if (currentTeam !== 'blue') {
+                    // Only host can start draft
+                    if (ws !== currentRoom.host) {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            message: 'Only the room creator can start the draft'
+                            message: 'Only the host can start the draft'
                         }));
                         break;
                     }
@@ -399,11 +402,11 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
-                    // Only blue player (room creator) can toggle
-                    if (currentTeam !== 'blue') {
+                    // Only host can toggle
+                    if (ws !== currentRoom.host) {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            message: 'Only the room creator can toggle Fearless Draft'
+                            message: 'Only the host can toggle Fearless Draft'
                         }));
                         break;
                     }
@@ -428,10 +431,10 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
-                    if (currentTeam !== 'blue') {
+                    if (ws !== currentRoom.host) {
                         ws.send(JSON.stringify({
                             type: 'error',
-                            message: 'Only the room creator can reset Fearless session'
+                            message: 'Only the host can reset Fearless session'
                         }));
                         break;
                     }
@@ -468,6 +471,15 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
+                    // Can't switch if already on that team
+                    if (currentTeam === newTeam) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'You are already on that team'
+                        }));
+                        break;
+                    }
+
                     // Can't switch during an active draft
                     if (currentRoom.draftState.phase === 'drafting') {
                         ws.send(JSON.stringify({
@@ -493,6 +505,9 @@ wss.on('connection', (ws) => {
                         }));
                         break;
                     }
+
+                    // Store if this player is the host (host status never changes)
+                    const isHost = ws === currentRoom.host;
 
                     // Remove player from current position
                     if (currentTeam === 'blue') {
@@ -523,8 +538,11 @@ wss.on('connection', (ws) => {
                     ws.send(JSON.stringify({
                         type: 'team_switched',
                         team: newTeam,
-                        isHost: ws === currentRoom.host,
-                        draftState: currentRoom.draftState
+                        isHost: isHost,
+                        draftState: currentRoom.draftState,
+                        bluePlayerName: currentRoom.bluePlayerName,
+                        redPlayerName: currentRoom.redPlayerName,
+                        spectators: currentRoom.spectators.map(s => s.name)
                     }));
 
                     // Notify all other players in the room
@@ -535,7 +553,7 @@ wss.on('connection', (ws) => {
                         spectators: currentRoom.spectators.map(s => s.name)
                     }, ws);
 
-                    console.log(`Player switched to ${newTeam} in room ${currentRoom.id}`);
+                    console.log(`Player ${playerName} switched to ${newTeam} team in room ${currentRoom.id}${isHost ? ' (host)' : ''}`);
                     break;
                 }
 

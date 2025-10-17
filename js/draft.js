@@ -521,10 +521,13 @@ function initializeFearlessDraft() {
     fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
     fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
 
-    // Disable toggle in multiplayer if not room creator (blue team) or if spectator
-    if (draftMode === 'multiplayer' && (myTeam !== 'blue' || myTeam === 'spectator')) {
-        fearlessToggle.disabled = true;
-        fearlessResetBtn.disabled = true;
+    // Disable toggle in multiplayer if not host
+    if (draftMode === 'multiplayer') {
+        const isHost = Multiplayer.getIsHost();
+        if (!isHost) {
+            fearlessToggle.disabled = true;
+            fearlessResetBtn.disabled = true;
+        }
     }
 
     fearlessToggle.addEventListener('change', (e) => {

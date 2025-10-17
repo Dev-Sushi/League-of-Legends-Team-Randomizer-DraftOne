@@ -86,6 +86,14 @@ function handleServerMessage(data) {
             if (data.fearlessDraftEnabled !== undefined) {
                 updateFearlessState(data.fearlessDraftEnabled);
             }
+            // Update room players list
+            if (onRoomUpdateCallback) {
+                onRoomUpdateCallback({
+                    bluePlayerName: data.bluePlayerName,
+                    redPlayerName: data.redPlayerName,
+                    spectators: data.spectators || []
+                });
+            }
             break;
 
         case 'room_joined':
@@ -155,6 +163,14 @@ function handleServerMessage(data) {
             updateRoomUI(currentRoomCode, data.team, false);
             if (onDraftUpdateCallback) {
                 onDraftUpdateCallback(data.draftState, data.team);
+            }
+            // Update room players list if included
+            if (data.bluePlayerName !== undefined && onRoomUpdateCallback) {
+                onRoomUpdateCallback({
+                    bluePlayerName: data.bluePlayerName,
+                    redPlayerName: data.redPlayerName,
+                    spectators: data.spectators || []
+                });
             }
             showNotification(`Switched to ${data.team === 'spectator' ? 'Spectator mode' : data.team.charAt(0).toUpperCase() + data.team.slice(1) + ' Team'}`, 'success');
             break;
@@ -304,6 +320,7 @@ function updateRoomUI(roomCode, team, isJoiner) {
     const roomInfoElement = document.getElementById('multiplayer-room-info');
     const roomCodeElement = document.getElementById('room-code-display');
     const teamBadgeElement = document.getElementById('team-badge');
+    const hostBadgeElement = document.getElementById('host-badge');
     const teamSwitcher = document.getElementById('team-switcher');
     const teamSwitcherConfirmBtn = document.getElementById('team-switcher-confirm-btn');
     const teamSwitcherPreview = document.getElementById('team-switcher-preview');
@@ -321,8 +338,17 @@ function updateRoomUI(roomCode, team, isJoiner) {
             teamBadgeElement.textContent = 'Spectator';
             teamBadgeElement.className = 'team-badge';
         } else {
-            teamBadgeElement.textContent = team === 'blue' ? 'Blue Team' : 'Red Team';
+            teamBadgeElement.textContent = team === 'blue' ? 'Blue Team Captain' : 'Red Team Captain';
             teamBadgeElement.className = `team-badge ${team}-team-badge`;
+        }
+    }
+
+    // Update host badge visibility
+    if (hostBadgeElement) {
+        if (isHost) {
+            hostBadgeElement.classList.remove('hidden');
+        } else {
+            hostBadgeElement.classList.add('hidden');
         }
     }
 
@@ -353,10 +379,10 @@ function updateRoomUI(roomCode, team, isJoiner) {
         draftControls.classList.remove('hidden');
     }
 
-    // Update start button visibility (only blue team/host can start)
+    // Update start button visibility (only host can start)
     const startDraftBtn = document.getElementById('multiplayer-start-draft-btn');
     if (startDraftBtn) {
-        if (team === 'blue' || isHost) {
+        if (isHost) {
             startDraftBtn.classList.remove('hidden');
             startDraftBtn.textContent = isJoiner ? 'Restart Draft' : 'Start Draft';
         } else {
