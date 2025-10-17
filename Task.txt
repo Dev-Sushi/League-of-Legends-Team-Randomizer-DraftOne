@@ -1,0 +1,6 @@
+1. ✓ The Copy to Clipboard doesnt work in Draft
+2. ✓ Change it so Solo Draft and Multiplayer Draft arent black font color but yellow glowing
+3. ✓ When somebody joins a room the host sees doesnt see the joined person but the person who joined can see the host in the playerlist
+4. ✓ Make it so the Names are displayed in the draft screen instead of pick 1, same order as the Role List
+5. ✓ Fearless doesnt work when selected
+6. ✓ The New Draft button doesnt do anything in Multiplayer

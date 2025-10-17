@@ -396,8 +396,23 @@ function updateRoomUI(roomCode, team, isJoiner) {
  */
 function updateFearlessState(enabled) {
     const fearlessToggle = document.getElementById('fearless-draft-checkbox');
+    const fearlessLabel = document.getElementById('fearless-draft-label-text');
+    const fearlessResetBtn = document.getElementById('reset-fearless-session-btn');
+
     if (fearlessToggle) {
         fearlessToggle.checked = enabled;
+
+        // Update the visual state of the label and button
+        if (fearlessLabel) {
+            fearlessLabel.classList.toggle('active', enabled);
+        }
+        if (fearlessResetBtn) {
+            fearlessResetBtn.classList.toggle('hidden', !enabled);
+        }
+
+        // Dispatch a custom event to notify the draft module
+        const event = new CustomEvent('fearlessStateChanged', { detail: { enabled } });
+        document.dispatchEvent(event);
     }
 }
 
@@ -507,6 +522,13 @@ export function getCurrentTeam() {
  */
 export function getRoomCode() {
     return currentRoomCode;
+}
+
+/**
+ * Get current game state
+ */
+export function getGameState() {
+    return gameState;
 }
 
 /**

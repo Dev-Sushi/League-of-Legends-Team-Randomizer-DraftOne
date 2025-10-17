@@ -298,6 +298,14 @@ wss.on('connection', (ws) => {
                             type: 'opponent_joined',
                             opponentName: playerName
                         }, ws);
+
+                        // Also send room update so host sees the joined player
+                        broadcastToRoom(room, {
+                            type: 'room_update',
+                            bluePlayerName: room.bluePlayerName,
+                            redPlayerName: room.redPlayerName,
+                            spectators: room.spectators.map(s => s.name)
+                        }, ws);
                     } else {
                         // Both teams full, join as spectator
                         room.spectators.push({ ws, name: playerName });
@@ -480,13 +488,20 @@ wss.on('connection', (ws) => {
                         break;
                     }
 
-                    // Can't switch during an active draft
+                    // Can't switch during an active draft if any picks or bans have been made
                     if (currentRoom.draftState.phase === 'drafting') {
-                        ws.send(JSON.stringify({
-                            type: 'error',
-                            message: 'Cannot switch teams during an active draft'
-                        }));
-                        break;
+                        const totalActions = currentRoom.draftState.blueBans.length +
+                                            currentRoom.draftState.redBans.length +
+                                            currentRoom.draftState.bluePicks.length +
+                                            currentRoom.draftState.redPicks.length;
+
+                        if (totalActions > 0) {
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                message: 'Cannot switch teams after picks or bans have been made'
+                            }));
+                            break;
+                        }
                     }
 
                     // Check if target team is already occupied

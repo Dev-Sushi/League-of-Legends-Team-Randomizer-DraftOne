@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git commit:*)",
       "WebFetch(domain:draftlol.dawe.gg)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

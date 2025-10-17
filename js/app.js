@@ -1,10 +1,10 @@
 // --- MAIN APPLICATION LOGIC ---
-import { setPlayerPool, getPlayerPool, setRandomizerMode, getRandomizerMode, applyRolePreferences } from './state.js';
+import { setPlayerPool, getPlayerPool, setRandomizerMode, getRandomizerMode, applyRolePreferences, setTeamAssignments } from './state.js';
 import { parseLobbyChat, saveLobbyToStorage, loadLobbyFromStorage } from './parser.js';
-import { shuffleArray, validatePlayerCount } from './randomizer.js';
+import { shuffleArray, validatePlayerCount, solveRoleAssignment } from './randomizer.js';
 import { showStage, renderConfigUI, setupConfigUIEventListeners } from './ui.js';
 import { displayTeams } from './display.js';
-import { initializeDraft } from './draft.js';
+import { initializeDraft, getGameState } from './draft.js';
 import * as Multiplayer from './multiplayer.js';
 
 /**
@@ -29,6 +29,7 @@ function runRandomization() {
         // For 5man mode, take up to 5 players
         const team = shuffledPlayers.slice(0, 5);
         displayTeams(team, null);
+        setTeamAssignments(null); // No team assignments for 5man mode
         return true;
     } else {
         // For 5v5 mode, split players into two teams
@@ -36,6 +37,16 @@ function runRandomization() {
         const team1 = shuffledPlayers.slice(0, midPoint);
         const team2 = shuffledPlayers.slice(midPoint);
         displayTeams(team1, team2);
+
+        // Save team assignments with role assignments for draft screen
+        const team1RoleAssignments = solveRoleAssignment(team1);
+        const team2RoleAssignments = solveRoleAssignment(team2);
+
+        setTeamAssignments({
+            blueTeam: team1RoleAssignments,
+            redTeam: team2RoleAssignments
+        });
+
         return true;
     }
 }
@@ -272,7 +283,21 @@ function initializeEventListeners() {
     // Post-draft button listeners
     const draftNewDraftBtn = document.getElementById('draft-new-draft-btn');
     if (draftNewDraftBtn) {
-        draftNewDraftBtn.addEventListener('click', handleStartDraft);
+        draftNewDraftBtn.addEventListener('click', () => {
+            // In multiplayer mode, restart the draft instead of going back to mode selection
+            if (Multiplayer.isInMultiplayerMode()) {
+                const isHost = Multiplayer.getIsHost();
+                if (isHost) {
+                    // Host can restart the draft
+                    Multiplayer.startDraft();
+                } else {
+                    alert('Only the host can start a new draft');
+                }
+            } else {
+                // In solo mode, go back to draft mode selection
+                handleStartDraft();
+            }
+        });
     }
 
     const draftEditPlayersBtn = document.getElementById('draft-edit-players-btn');
@@ -368,6 +393,28 @@ function initializeEventListeners() {
                 teamSwitcherConfirmBtn.classList.add('hidden');
                 updateTeamSwitcherPreview(selectedTeam, selectedTeam);
             }
+        });
+    }
+
+    const copyDraftBtn = document.getElementById('copy-draft-btn');
+    if (copyDraftBtn) {
+        copyDraftBtn.addEventListener('click', () => {
+            const { blueBans, redBans, bluePicks, redPicks } = getGameState();
+
+            const formatTeam = (teamName, picks, bans) => {
+                const pickText = picks.length > 0 ? picks.join(', ') : 'None';
+                const banText = bans.length > 0 ? bans.join(', ') : 'None';
+                return `${teamName}\nPicks: ${pickText}\nBans: ${banText}`;
+            };
+
+            const draftText = `${formatTeam('Blue Team', bluePicks, blueBans)}\n\n${formatTeam('Red Team', redPicks, redBans)}`;
+
+            navigator.clipboard.writeText(draftText).then(() => {
+                alert('Draft copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy draft:', err);
+                alert('Failed to copy draft. Please check the console for details.');
+            });
         });
     }
 

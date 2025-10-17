@@ -2,6 +2,7 @@
 
 import { preloadSounds, playBanSound, playPickSound, playChampionHoverSound, playPhaseSound } from './sounds.js';
 import * as Multiplayer from './multiplayer.js';
+import { getTeamAssignments, getAllRoles } from './state.js';
 
 // --- STATE ---
 let champions = []; // Array of {id, name, image, tags}
@@ -239,6 +240,11 @@ export function updateDraftUI(newGameState = null) {
     // If new state provided (from multiplayer), merge it
     if (newGameState) {
         gameState = { ...gameState, ...newGameState };
+
+        // Sync fearlessUsedChampions Set with the array from server
+        if (newGameState.fearlessUsedChampions && Array.isArray(newGameState.fearlessUsedChampions)) {
+            fearlessUsedChampions = new Set(newGameState.fearlessUsedChampions);
+        }
     }
 
     const statusElement = document.getElementById('draft-status');
@@ -371,6 +377,33 @@ function updatePickDisplay(team, picks) {
     const pickContainer = document.getElementById(`${team}-team-picks`);
     pickContainer.innerHTML = '';
 
+    // Get team assignments to display player names
+    const teamAssignments = getTeamAssignments();
+    const roleOrder = getAllRoles(); // ['TOP', 'JGL', 'MID', 'ADC', 'SUP']
+    let playerNames = [];
+
+    if (teamAssignments) {
+        const teamKey = team === 'blue' ? 'blueTeam' : 'redTeam';
+        const roleAssignments = teamAssignments[teamKey];
+
+        if (roleAssignments) {
+            // roleAssignments is a Map of playerName -> role
+            // We need to invert it to get role -> playerName
+            const roleToPlayer = new Map();
+            for (const [playerName, role] of roleAssignments.entries()) {
+                roleToPlayer.set(role, playerName);
+            }
+
+            // Get player names in role order
+            roleOrder.forEach(role => {
+                const playerName = roleToPlayer.get(role);
+                if (playerName) {
+                    playerNames.push(playerName);
+                }
+            });
+        }
+    }
+
     const maxPicks = 5;
     for (let i = 0; i < maxPicks; i++) {
         const pickSlot = document.createElement('div');
@@ -403,7 +436,8 @@ function updatePickDisplay(team, picks) {
 
                 const position = document.createElement('div');
                 position.className = 'pick-position';
-                position.textContent = `Pick ${i + 1}`;
+                // Display player name if available, otherwise show Pick number
+                position.textContent = (playerNames.length > i) ? playerNames[i] : `Pick ${i + 1}`;
 
                 pickSlot.appendChild(portraitContainer);
                 pickSlot.appendChild(champName);
@@ -417,7 +451,8 @@ function updatePickDisplay(team, picks) {
 
             const position = document.createElement('div');
             position.className = 'pick-position';
-            position.textContent = `Pick ${i + 1}`;
+            // Display player name if available, otherwise show Pick number
+            position.textContent = (playerNames.length > i) ? playerNames[i] : `Pick ${i + 1}`;
 
             pickSlot.appendChild(emptyContainer);
             pickSlot.appendChild(position);
@@ -449,6 +484,10 @@ function updateChampionGridAvailability() {
             card.classList.remove('disabled');
         }
     });
+}
+
+export function getGameState() {
+    return gameState;
 }
 
 /**
@@ -553,6 +592,12 @@ function initializeFearlessDraft() {
                 updateChampionGridAvailability();
             }
         }
+    });
+
+    // Listen for fearless state changes from multiplayer module
+    document.addEventListener('fearlessStateChanged', (e) => {
+        fearlessDraftEnabled = e.detail.enabled;
+        updateChampionGridAvailability();
     });
 }
 

@@ -1836,7 +1836,8 @@ body.red-turn {
 .btn-mode .btn-text {
     font-size: 1.2rem;
     letter-spacing: 2px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    color: var(--gold-accent);
+    text-shadow: 0 0 10px var(--gold-accent), 0 0 20px var(--gold-accent);
 }
 
 .btn-mode .btn-description {
@@ -2176,7 +2177,7 @@ body.red-turn {
 .team-switcher-select {
     flex: 1;
     padding: 10px 14px;
-    background: linear-gradient(135deg, rgba(10, 172, 230, 0.1) 0%, rgba(1, 10, 19, 0.8) 100%);
+    background: rgba(1, 10, 19, 0.95);
     border: 2px solid var(--border-color);
     border-radius: 6px;
     color: var(--text-primary);
@@ -2184,6 +2185,12 @@ body.red-turn {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+}
+
+.team-switcher-select option {
+    background-color: rgba(1, 10, 19, 1);
+    color: var(--text-primary);
+    padding: 10px;
 }
 
 .team-switcher-select:hover {

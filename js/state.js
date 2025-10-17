@@ -2,7 +2,8 @@
 export const state = {
     playerPool: [],
     ALL_ROLES: ['TOP', 'JGL', 'MID', 'ADC', 'SUP'],
-    randomizerMode: '5man'
+    randomizerMode: '5man',
+    teamAssignments: null // Stores { blueTeam: [...], redTeam: [...] } with role assignments
 };
 
 export function setPlayerPool(players) {
@@ -75,4 +76,20 @@ export function applyRolePreferences() {
             player.roles = savedPreferences[player.name];
         }
     });
+}
+
+/**
+ * Saves team assignments for draft screen
+ * @param {Object} assignments - { blueTeam: [...], redTeam: [...] }
+ */
+export function setTeamAssignments(assignments) {
+    state.teamAssignments = assignments;
+}
+
+/**
+ * Gets team assignments for draft screen
+ * @returns {Object|null} - { blueTeam: [...], redTeam: [...] } or null
+ */
+export function getTeamAssignments() {
+    return state.teamAssignments;
 }
