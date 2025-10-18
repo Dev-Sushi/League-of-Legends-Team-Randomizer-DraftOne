@@ -74,6 +74,13 @@
                     </div>
                     <div class="direct-join-container">
                         <h3 class="direct-join-title">Join Existing Draft Room</h3>
+
+                        <!-- Player Name Input for Direct Join -->
+                        <div class="direct-join-player-name-container">
+                            <label for="direct-join-player-name" class="direct-join-player-name-label">Your Name:</label>
+                            <input type="text" id="direct-join-player-name" placeholder="Enter your display name" maxlength="20" class="direct-join-player-name-input" autocomplete="off">
+                        </div>
+
                         <div class="direct-join-input-group">
                             <input
                                 type="text"
@@ -151,6 +158,13 @@
                     <!-- Create/Join Room UI -->
                     <div id="room-selection" class="room-selection hidden">
                         <h4>Multiplayer Room</h4>
+
+                        <!-- Player Name Input -->
+                        <div class="player-name-container">
+                            <label for="player-name-input" class="player-name-label">Your Name:</label>
+                            <input type="text" id="player-name-input" placeholder="Enter your display name" maxlength="20" class="player-name-input" autocomplete="off">
+                        </div>
+
                         <div class="room-options">
                             <button id="create-room-btn" type="button" class="btn btn-primary">
                                 <span class="btn-icon">+</span>

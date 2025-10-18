@@ -676,18 +676,36 @@ export async function initializeDraft(mode = 'solo', team = null) {
 
         // Setup role assignments update callback
         Multiplayer.onRoleAssignmentsUpdate((data) => {
-            console.log('Received role assignments update:', data);
+            console.log('====== ROLE ASSIGNMENTS UPDATE RECEIVED ======');
+            console.log('Raw data:', data);
+            console.log('Has blueTeamRoles:', !!data.blueTeamRoles);
+            console.log('Has redTeamRoles:', !!data.redTeamRoles);
+
+            // Check if role assignments exist
+            if (!data.blueTeamRoles && !data.redTeamRoles) {
+                console.log('No role assignments in update - both are null/undefined');
+                return;
+            }
+
             // Convert received objects back to Maps
             const blueTeamRoles = data.blueTeamRoles ? new Map(Object.entries(data.blueTeamRoles)) : null;
             const redTeamRoles = data.redTeamRoles ? new Map(Object.entries(data.redTeamRoles)) : null;
+
+            console.log('Converted to Maps:');
+            console.log('  blueTeamRoles:', blueTeamRoles);
+            console.log('  redTeamRoles:', redTeamRoles);
 
             setTeamAssignments({
                 blueTeam: blueTeamRoles,
                 redTeam: redTeamRoles
             });
 
+            console.log('Team assignments set in state');
+
             // Update the UI to reflect the new role assignments
+            console.log('Calling updateDraftUI to reflect new role assignments');
             updateDraftUI();
+            console.log('====== ROLE ASSIGNMENTS UPDATE COMPLETE ======');
         });
 
         // Check if there were initial role assignments sent before callback was registered

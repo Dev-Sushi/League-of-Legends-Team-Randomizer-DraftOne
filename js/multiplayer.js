@@ -266,7 +266,12 @@ function handleServerMessage(data) {
             currentRoomCode = data.roomCode;
             currentTeam = data.team;
             isHost = data.isHost || false;
-            console.log('Room joined - role assignments received:', data.blueTeamRoles, data.redTeamRoles);
+            console.log('Room joined - role assignments received:', {
+                blueTeamRoles: data.blueTeamRoles,
+                redTeamRoles: data.redTeamRoles,
+                hasBlueRoles: !!data.blueTeamRoles,
+                hasRedRoles: !!data.redTeamRoles
+            });
             updateRoomUI(data.roomCode, data.team, true);
             if (onDraftUpdateCallback) {
                 // Mark as sync (no animations) when joining/rejoining
@@ -288,20 +293,24 @@ function handleServerMessage(data) {
             if (data.blueTeamRoles || data.redTeamRoles) {
                 console.log('Processing role assignments, callback registered:', !!onRoleAssignmentsUpdateCallback);
                 if (onRoleAssignmentsUpdateCallback) {
+                    console.log('Calling onRoleAssignmentsUpdateCallback immediately');
                     onRoleAssignmentsUpdateCallback({
                         blueTeamRoles: data.blueTeamRoles,
                         redTeamRoles: data.redTeamRoles
                     });
                 } else {
                     // Store for later when callback is registered
-                    console.log('Storing pending role assignments for later');
+                    console.log('Storing pending role assignments for later:', {
+                        blueTeamRoles: data.blueTeamRoles,
+                        redTeamRoles: data.redTeamRoles
+                    });
                     pendingRoleAssignments = {
                         blueTeamRoles: data.blueTeamRoles,
                         redTeamRoles: data.redTeamRoles
                     };
                 }
             } else {
-                console.log('No role assignments in room_joined message');
+                console.log('No role assignments in room_joined message (both null)');
             }
             break;
 

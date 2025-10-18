@@ -331,6 +331,27 @@ function initializeEventListeners() {
         multiplayerDraftBtn.addEventListener('click', showMultiplayerOptions);
     }
 
+    // Player name input handling
+    const playerNameInput = document.getElementById('player-name-input');
+    if (playerNameInput) {
+        // Load saved player name from localStorage
+        const savedPlayerName = Multiplayer.getPlayerName();
+        playerNameInput.value = savedPlayerName;
+
+        // Update player name in localStorage when changed
+        playerNameInput.addEventListener('input', (e) => {
+            const newName = e.target.value.trim();
+            if (newName) {
+                Multiplayer.setPlayerName(newName);
+                // Also update the direct join player name input if it exists
+                const directJoinPlayerName = document.getElementById('direct-join-player-name');
+                if (directJoinPlayerName) {
+                    directJoinPlayerName.value = newName;
+                }
+            }
+        });
+    }
+
     // Multiplayer room management
     const createRoomBtn = document.getElementById('create-room-btn');
     if (createRoomBtn) {
@@ -496,6 +517,27 @@ function initializeEventListeners() {
         // Auto-uppercase input
         directJoinRoomCode.addEventListener('input', (e) => {
             e.target.value = e.target.value.toUpperCase();
+        });
+    }
+
+    // Direct join player name input handling
+    const directJoinPlayerName = document.getElementById('direct-join-player-name');
+    if (directJoinPlayerName) {
+        // Load saved player name from localStorage
+        const savedPlayerName = Multiplayer.getPlayerName();
+        directJoinPlayerName.value = savedPlayerName;
+
+        // Update player name in localStorage when changed
+        directJoinPlayerName.addEventListener('input', (e) => {
+            const newName = e.target.value.trim();
+            if (newName) {
+                Multiplayer.setPlayerName(newName);
+                // Also update the other player name input if it exists
+                const playerNameInput = document.getElementById('player-name-input');
+                if (playerNameInput) {
+                    playerNameInput.value = newName;
+                }
+            }
         });
     }
 }

@@ -238,8 +238,33 @@ wss.on('connection', (ws) => {
             const data = JSON.parse(message);
             console.log('Received:', data.type, data);
 
+            // Send acknowledgment if requested
+            if (data.messageId && data.requiresAck) {
+                ws.send(JSON.stringify({ type: 'ack', messageId: data.messageId }));
+            }
+
             switch (data.type) {
                 case 'create_room': {
+                    // Check if player already has a room (idempotency for retries)
+                    if (currentRoom && currentRoom.host === ws) {
+                        // Already created, just send the existing room info
+                        ws.send(JSON.stringify({
+                            type: 'room_created',
+                            roomCode: currentRoom.id,
+                            team: currentTeam,
+                            isHost: true,
+                            draftState: currentRoom.draftState,
+                            fearlessDraftEnabled: currentRoom.fearlessDraftEnabled,
+                            bluePlayerName: currentRoom.bluePlayerName,
+                            redPlayerName: currentRoom.redPlayerName,
+                            blueTeamRoles: currentRoom.blueTeamRoles,
+                            redTeamRoles: currentRoom.redTeamRoles,
+                            spectators: currentRoom.spectators.map(s => s.name)
+                        }));
+                        console.log(`Resending existing room ${currentRoom.id} (retry from host)`);
+                        break;
+                    }
+
                     let roomCode;
                     do {
                         roomCode = generateRoomCode();
@@ -281,6 +306,26 @@ wss.on('connection', (ws) => {
                             type: 'error',
                             message: 'Room not found'
                         }));
+                        break;
+                    }
+
+                    // Check if player already in this room (idempotency for retries)
+                    if (currentRoom === room) {
+                        // Already joined, just resend the confirmation
+                        ws.send(JSON.stringify({
+                            type: 'room_joined',
+                            roomCode: roomCode,
+                            team: currentTeam,
+                            isHost: ws === room.host,
+                            draftState: room.draftState,
+                            fearlessDraftEnabled: room.fearlessDraftEnabled,
+                            bluePlayerName: room.bluePlayerName,
+                            redPlayerName: room.redPlayerName,
+                            blueTeamRoles: room.blueTeamRoles,
+                            redTeamRoles: room.redTeamRoles,
+                            spectators: room.spectators.map(s => s.name)
+                        }));
+                        console.log(`Resending join confirmation for room ${roomCode} (retry)`);
                         break;
                     }
 
@@ -348,6 +393,11 @@ wss.on('connection', (ws) => {
                         spectators: room.spectators.map(s => s.name)
                     }));
 
+                    console.log(`Sent room_joined with role assignments:`, {
+                        blueTeamRoles: room.blueTeamRoles,
+                        redTeamRoles: room.redTeamRoles
+                    });
+
                     break;
                 }
 
@@ -362,6 +412,26 @@ wss.on('connection', (ws) => {
                             type: 'error',
                             message: 'Room not found'
                         }));
+                        break;
+                    }
+
+                    // Check if player already in this room (idempotency for retries)
+                    if (currentRoom === room) {
+                        // Already rejoined, just resend the confirmation
+                        ws.send(JSON.stringify({
+                            type: 'room_joined',
+                            roomCode: roomCode,
+                            team: currentTeam,
+                            isHost: ws === room.host,
+                            draftState: room.draftState,
+                            fearlessDraftEnabled: room.fearlessDraftEnabled,
+                            bluePlayerName: room.bluePlayerName,
+                            redPlayerName: room.redPlayerName,
+                            blueTeamRoles: room.blueTeamRoles,
+                            redTeamRoles: room.redTeamRoles,
+                            spectators: room.spectators.map(s => s.name)
+                        }));
+                        console.log(`Resending rejoin confirmation for room ${roomCode} (retry)`);
                         break;
                     }
 
@@ -690,16 +760,29 @@ wss.on('connection', (ws) => {
                     currentRoom.blueTeamRoles = data.blueTeamRoles;
                     currentRoom.redTeamRoles = data.redTeamRoles;
 
-                    // Broadcast to all players in the room
+                    console.log(`Role assignments updated in room ${currentRoom.id}:`, {
+                        blueTeamRoles: currentRoom.blueTeamRoles,
+                        redTeamRoles: currentRoom.redTeamRoles
+                    });
+
+                    // Broadcast to all players in the room (including sender)
                     broadcastToRoom(currentRoom, {
                         type: 'role_assignments_updated',
                         blueTeamRoles: currentRoom.blueTeamRoles,
                         redTeamRoles: currentRoom.redTeamRoles
                     });
 
-                    console.log(`Role assignments updated in room ${currentRoom.id}`);
+                    console.log(`Role assignments broadcasted to all players in room ${currentRoom.id}`);
                     break;
                 }
+
+                case 'ping':
+                    // Respond to ping with pong
+                    ws.send(JSON.stringify({
+                        type: 'pong',
+                        timestamp: data.timestamp
+                    }));
+                    break;
 
                 default:
                     console.log('Unknown message type:', data.type);
