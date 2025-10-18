@@ -383,7 +383,7 @@ wss.on('connection', (ws) => {
                         type: 'room_joined',
                         roomCode: roomCode,
                         team: joinedTeam,
-                        isHost: false,
+                        isHost: ws === room.host,
                         draftState: room.draftState,
                         fearlessDraftEnabled: room.fearlessDraftEnabled,
                         bluePlayerName: room.bluePlayerName,
