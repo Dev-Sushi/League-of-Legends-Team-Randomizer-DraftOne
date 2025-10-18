@@ -1232,11 +1232,45 @@ input:checked + .slider:before {
     }
 }
 
+.pick-player-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--blue-accent);
+    margin-bottom: 4px;
+    animation: pick-text-appear 0.5s ease-out 0.4s backwards;
+    min-height: 1rem;
+}
+
+.red-picks-column .pick-player-name {
+    color: var(--red-accent);
+}
+
 .pick-position {
     font-size: 0.75rem;
     color: var(--text-secondary);
     font-weight: 600;
     text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pick-role-icon-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pick-role-icon-container .role-button {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--border-color);
+    pointer-events: none;
+}
+
+.pick-role-icon-container .role-icon {
+    width: 24px;
+    height: 24px;
 }
 
 /* --- Champion Selection Center --- */
@@ -1422,6 +1456,12 @@ body.red-turn {
     animation: ban-x-appear 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
 
+/* Skip animations during state sync */
+.champion-card-league[style*="--skip-ban-animation"]::before {
+    animation: none !important;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
 .champion-card-league.banned::after {
     content: '';
     position: absolute;
@@ -1431,6 +1471,12 @@ body.red-turn {
     animation: ban-flash 0.8s ease-out forwards;
     pointer-events: none;
     z-index: 9;
+}
+
+/* Skip animations during state sync */
+.champion-card-league[style*="--skip-ban-animation"]::after {
+    animation: none !important;
+    opacity: 0;
 }
 
 .champion-card-league.picked {
@@ -1449,6 +1495,12 @@ body.red-turn {
     z-index: 10;
 }
 
+/* Skip animations during state sync */
+.champion-card-league[style*="--skip-pick-animation"]::before {
+    animation: none !important;
+    opacity: 0;
+}
+
 .champion-card-league.picked::after {
     content: '';
     position: absolute;
@@ -1458,6 +1510,12 @@ body.red-turn {
     animation: pick-glow-pulse 0.8s ease-out forwards;
     pointer-events: none;
     z-index: 9;
+}
+
+/* Skip animations during state sync */
+.champion-card-league[style*="--skip-pick-animation"]::after {
+    animation: none !important;
+    opacity: 0;
 }
 
 @keyframes ban-animation {

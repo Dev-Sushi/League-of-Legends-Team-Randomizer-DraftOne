@@ -12,6 +12,32 @@ let onRoomStatusCallback = null;
 let onRoomUpdateCallback = null;
 let onRoleAssignmentsUpdateCallback = null;
 let pendingRoleAssignments = null; // Store role assignments received before callback is registered
+let lastKnownDraftState = null; // Track last known state to detect actual changes
+
+// Connection robustness state
+let reconnectAttempts = 0;
+let maxReconnectAttempts = 10;
+let reconnectTimeout = null;
+let heartbeatInterval = null;
+let heartbeatMissed = 0;
+let maxHeartbeatMissed = 3;
+let messageQueue = [];
+let isReconnecting = false;
+let connectionState = 'disconnected'; // 'connected', 'connecting', 'disconnected', 'reconnecting'
+
+// Advanced network monitoring
+let lastPingTime = 0;
+let lastPongTime = 0;
+let averageLatency = 0;
+let latencyHistory = [];
+let maxLatencyHistory = 10;
+let messageIdCounter = 0;
+let pendingMessages = new Map(); // Track messages awaiting acknowledgment
+let messageRetryAttempts = new Map();
+let maxMessageRetries = 3;
+let onlineStatusCheckInterval = null;
+let isOnline = navigator.onLine;
+let reconnectDelayMultiplier = 1; // Increases on repeated failures
 
 /**
  * Initialize multiplayer module
@@ -20,54 +46,175 @@ export function initMultiplayer() {
     // Generate or retrieve player name
     playerName = localStorage.getItem('playerName') || `Player${Math.floor(Math.random() * 1000)}`;
     localStorage.setItem('playerName', playerName);
+
+    // Setup online/offline detection
+    setupOnlineDetection();
 }
 
 /**
- * Connect to WebSocket server
+ * Setup online/offline event detection
+ */
+function setupOnlineDetection() {
+    window.addEventListener('online', () => {
+        console.log('Network came back online');
+        isOnline = true;
+        showNotification('Network connection restored', 'success');
+
+        // Attempt immediate reconnection if we were in multiplayer mode
+        if (isMultiplayerMode && !ws && currentRoomCode) {
+            console.log('Attempting reconnection after coming online');
+            reconnectAttempts = 0; // Reset attempts since network is back
+            reconnectToRoom();
+        }
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('Network went offline');
+        isOnline = false;
+        showNotification('Network connection lost', 'error');
+        updateConnectionStatus(false);
+    });
+
+    // Periodic online check (every 10 seconds)
+    onlineStatusCheckInterval = setInterval(() => {
+        const currentlyOnline = navigator.onLine;
+        if (currentlyOnline !== isOnline) {
+            isOnline = currentlyOnline;
+            if (isOnline) {
+                console.log('Network detected as back online via polling');
+                if (isMultiplayerMode && !ws && currentRoomCode) {
+                    reconnectAttempts = Math.max(0, reconnectAttempts - 2); // Give bonus attempts
+                    reconnectToRoom();
+                }
+            }
+        }
+    }, 10000);
+}
+
+/**
+ * Connect to WebSocket server with timeout
  */
 function connectWebSocket() {
     return new Promise((resolve, reject) => {
+        // Set connection state
+        connectionState = isReconnecting ? 'reconnecting' : 'connecting';
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
 
-        ws = new WebSocket(wsUrl);
+        // Connection timeout after 10 seconds
+        const connectionTimeout = setTimeout(() => {
+            if (connectionState !== 'connected') {
+                console.error('WebSocket connection timeout');
+                if (ws) {
+                    ws.close();
+                }
+                connectionState = 'disconnected';
+                updateConnectionStatus(false);
+                reject(new Error('Connection timeout'));
+            }
+        }, 10000);
 
-        ws.onopen = () => {
-            console.log('WebSocket connected');
-            updateConnectionStatus(true);
-            resolve();
-        };
+        try {
+            ws = new WebSocket(wsUrl);
 
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            ws.onopen = () => {
+                clearTimeout(connectionTimeout);
+                console.log('WebSocket connected');
+                connectionState = 'connected';
+                reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+                isReconnecting = false;
+                updateConnectionStatus(true);
+                startHeartbeat();
+                flushMessageQueue(); // Send any queued messages
+                resolve();
+            };
+
+            ws.onerror = (error) => {
+                clearTimeout(connectionTimeout);
+                console.error('WebSocket error:', error);
+                connectionState = 'disconnected';
+                updateConnectionStatus(false);
+
+                // Only reject if this is the initial connection, not a reconnect
+                if (!isReconnecting) {
+                    reject(error);
+                }
+            };
+
+            ws.onclose = (event) => {
+                clearTimeout(connectionTimeout);
+                console.log('WebSocket disconnected', event.code, event.reason);
+                connectionState = 'disconnected';
+                updateConnectionStatus(false);
+                stopHeartbeat();
+
+                // Attempt reconnection with exponential backoff if in multiplayer mode
+                if (isMultiplayerMode && !isReconnecting && reconnectAttempts < maxReconnectAttempts) {
+                    scheduleReconnect();
+                } else if (reconnectAttempts >= maxReconnectAttempts) {
+                    console.error('Max reconnection attempts reached');
+                    showNotification('Connection lost. Please refresh the page.', 'error');
+                }
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    // Validate message structure
+                    if (!data || typeof data !== 'object' || !data.type) {
+                        console.error('Invalid message format:', data);
+                        return;
+                    }
+
+                    // Reset heartbeat counter on any message
+                    heartbeatMissed = 0;
+
+                    // Handle special internal messages
+                    if (data.type === 'pong') {
+                        handlePong(data);
+                        return;
+                    }
+
+                    if (data.type === 'ack' && data.messageId) {
+                        handleMessageAck(data.messageId);
+                        return;
+                    }
+
+                    // Send acknowledgment for messages that request it
+                    if (data.messageId && data.requiresAck) {
+                        sendAck(data.messageId);
+                    }
+
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('Failed to parse server message:', e, event.data);
+                }
+            };
+        } catch (error) {
+            clearTimeout(connectionTimeout);
+            console.error('Failed to create WebSocket:', error);
+            connectionState = 'disconnected';
             updateConnectionStatus(false);
             reject(error);
-        };
-
-        ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            updateConnectionStatus(false);
-
-            // Attempt reconnection after 3 seconds if in multiplayer mode
-            if (isMultiplayerMode) {
-                setTimeout(() => {
-                    if (currentRoomCode) {
-                        console.log('Attempting to reconnect...');
-                        reconnectToRoom();
-                    }
-                }, 3000);
-            }
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                handleServerMessage(data);
-            } catch (e) {
-                console.error('Failed to parse server message:', e);
-            }
-        };
+        }
     });
+}
+
+/**
+ * Check if draft state has actually changed (new action occurred)
+ */
+function hasStateChanged(oldState, newState) {
+    if (!oldState) return true; // First state update
+
+    // Compare total number of actions
+    const oldTotal = (oldState.blueBans?.length || 0) + (oldState.redBans?.length || 0) +
+                     (oldState.bluePicks?.length || 0) + (oldState.redPicks?.length || 0);
+    const newTotal = (newState.blueBans?.length || 0) + (newState.redBans?.length || 0) +
+                     (newState.bluePicks?.length || 0) + (newState.redPicks?.length || 0);
+
+    return newTotal > oldTotal;
 }
 
 /**
@@ -83,7 +230,9 @@ function handleServerMessage(data) {
             isHost = data.isHost || false;
             updateRoomUI(data.roomCode, data.team, false);
             if (onDraftUpdateCallback) {
-                onDraftUpdateCallback(data.draftState, data.team);
+                // Mark as sync (no animations) for initial state
+                lastKnownDraftState = data.draftState;
+                onDraftUpdateCallback(data.draftState, data.team, true);
             }
             if (data.fearlessDraftEnabled !== undefined) {
                 updateFearlessState(data.fearlessDraftEnabled);
@@ -120,7 +269,9 @@ function handleServerMessage(data) {
             console.log('Room joined - role assignments received:', data.blueTeamRoles, data.redTeamRoles);
             updateRoomUI(data.roomCode, data.team, true);
             if (onDraftUpdateCallback) {
-                onDraftUpdateCallback(data.draftState, data.team);
+                // Mark as sync (no animations) when joining/rejoining
+                lastKnownDraftState = data.draftState;
+                onDraftUpdateCallback(data.draftState, data.team, true);
             }
             if (data.fearlessDraftEnabled !== undefined) {
                 updateFearlessState(data.fearlessDraftEnabled);
@@ -176,13 +327,17 @@ function handleServerMessage(data) {
 
         case 'draft_started':
             if (onDraftUpdateCallback) {
-                onDraftUpdateCallback(data.draftState, currentTeam);
+                lastKnownDraftState = data.draftState;
+                onDraftUpdateCallback(data.draftState, currentTeam, false);
             }
             break;
 
         case 'draft_update':
             if (onDraftUpdateCallback) {
-                onDraftUpdateCallback(data.draftState, currentTeam);
+                // Check if this is actually a new action (not a reconnect sync)
+                const isNewAction = hasStateChanged(lastKnownDraftState, data.draftState);
+                lastKnownDraftState = data.draftState;
+                onDraftUpdateCallback(data.draftState, currentTeam, !isNewAction);
             }
             break;
 
@@ -199,7 +354,8 @@ function handleServerMessage(data) {
             isHost = data.isHost || false;
             updateRoomUI(currentRoomCode, data.team, false);
             if (onDraftUpdateCallback) {
-                onDraftUpdateCallback(data.draftState, data.team);
+                lastKnownDraftState = data.draftState;
+                onDraftUpdateCallback(data.draftState, data.team, true);
             }
             // Update room players list if included
             if (data.bluePlayerName !== undefined && onRoomUpdateCallback) {
@@ -314,13 +470,213 @@ async function reconnectToRoom() {
 
     try {
         await connectWebSocket();
+        // Use rejoin_room to preserve team assignment
         sendMessage({
-            type: currentTeam === 'blue' ? 'create_room' : 'join_room',
+            type: 'rejoin_room',
             roomCode: currentRoomCode,
+            team: currentTeam, // Specify which team to rejoin
             playerName: playerName
         });
+        showNotification('Reconnected successfully', 'success');
     } catch (error) {
         console.error('Failed to reconnect:', error);
+    }
+}
+
+/**
+ * Schedule reconnection with exponential backoff
+ */
+function scheduleReconnect() {
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+    }
+
+    reconnectAttempts++;
+    isReconnecting = true;
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s (capped at 30s)
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+
+    console.log(`Scheduling reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
+    showNotification(`Reconnecting in ${Math.ceil(delay / 1000)}s (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`, 'info');
+
+    reconnectTimeout = setTimeout(() => {
+        if (currentRoomCode && isMultiplayerMode) {
+            console.log('Attempting to reconnect...');
+            reconnectToRoom().catch(error => {
+                console.error('Reconnection failed:', error);
+                // scheduleReconnect will be called again from onclose
+            });
+        }
+    }, delay);
+}
+
+/**
+ * Start heartbeat monitoring with ping/pong
+ */
+function startHeartbeat() {
+    stopHeartbeat(); // Clear any existing heartbeat
+
+    // Send ping every 15 seconds
+    heartbeatInterval = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            // Check if last pong was received
+            const now = Date.now();
+            if (lastPingTime > 0 && lastPongTime < lastPingTime) {
+                heartbeatMissed++;
+                console.warn(`Ping timeout, missed ${heartbeatMissed}/${maxHeartbeatMissed}`);
+
+                if (heartbeatMissed >= maxHeartbeatMissed) {
+                    console.error('Heartbeat timeout - connection appears dead');
+                    stopHeartbeat();
+                    if (ws) {
+                        ws.close();
+                    }
+                    return;
+                }
+            } else {
+                heartbeatMissed = 0;
+            }
+
+            // Send ping
+            sendPing();
+        } else {
+            stopHeartbeat();
+        }
+    }, 15000);
+
+    // Send initial ping
+    setTimeout(() => sendPing(), 1000);
+}
+
+/**
+ * Stop heartbeat monitoring
+ */
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+    heartbeatMissed = 0;
+    lastPingTime = 0;
+    lastPongTime = 0;
+}
+
+/**
+ * Send ping to measure latency
+ */
+function sendPing() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        lastPingTime = Date.now();
+        try {
+            ws.send(JSON.stringify({ type: 'ping', timestamp: lastPingTime }));
+        } catch (error) {
+            console.error('Failed to send ping:', error);
+        }
+    }
+}
+
+/**
+ * Handle pong response from server
+ */
+function handlePong(data) {
+    lastPongTime = Date.now();
+    const latency = lastPongTime - (data.timestamp || lastPingTime);
+
+    // Update latency statistics
+    latencyHistory.push(latency);
+    if (latencyHistory.length > maxLatencyHistory) {
+        latencyHistory.shift();
+    }
+
+    // Calculate average latency
+    averageLatency = Math.round(
+        latencyHistory.reduce((sum, l) => sum + l, 0) / latencyHistory.length
+    );
+
+    // Update connection quality indicator
+    updateConnectionQuality(averageLatency);
+
+    console.log(`Latency: ${latency}ms, Average: ${averageLatency}ms`);
+}
+
+/**
+ * Update connection quality indicator based on latency
+ */
+function updateConnectionQuality(latency) {
+    const statusElement = document.getElementById('connection-status');
+    if (!statusElement || connectionState !== 'connected') return;
+
+    let qualityText = '';
+    let qualityClass = '';
+
+    if (latency < 100) {
+        qualityText = 'Connected (Excellent)';
+        qualityClass = 'quality-excellent';
+    } else if (latency < 200) {
+        qualityText = 'Connected (Good)';
+        qualityClass = 'quality-good';
+    } else if (latency < 400) {
+        qualityText = 'Connected (Fair)';
+        qualityClass = 'quality-fair';
+    } else {
+        qualityText = 'Connected (Poor)';
+        qualityClass = 'quality-poor';
+    }
+
+    statusElement.textContent = qualityText;
+    statusElement.className = `connection-status connected ${qualityClass}`;
+}
+
+/**
+ * Send acknowledgment for received message
+ */
+function sendAck(messageId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({ type: 'ack', messageId: messageId }));
+        } catch (error) {
+            console.error('Failed to send ack:', error);
+        }
+    }
+}
+
+/**
+ * Handle message acknowledgment from server
+ */
+function handleMessageAck(messageId) {
+    if (pendingMessages.has(messageId)) {
+        const message = pendingMessages.get(messageId);
+        console.log(`Message acknowledged: ${message.type} (id: ${messageId})`);
+        pendingMessages.delete(messageId);
+        messageRetryAttempts.delete(messageId);
+    }
+}
+
+/**
+ * Queue a message to be sent when connection is restored
+ */
+function queueMessage(message) {
+    messageQueue.push(message);
+    console.log('Message queued:', message.type);
+
+    // Limit queue size to prevent memory issues
+    if (messageQueue.length > 50) {
+        messageQueue.shift(); // Remove oldest message
+    }
+}
+
+/**
+ * Flush queued messages after reconnection
+ */
+function flushMessageQueue() {
+    if (messageQueue.length === 0) return;
+
+    console.log(`Flushing ${messageQueue.length} queued messages`);
+
+    while (messageQueue.length > 0) {
+        const message = messageQueue.shift();
+        sendMessage(message);
     }
 }
 
@@ -374,14 +730,154 @@ export function updateRoleAssignments(blueTeamRoles, redTeamRoles) {
 }
 
 /**
- * Send a message to the server
+ * Send a message to the server with retry logic and acknowledgment tracking
  */
-function sendMessage(message) {
+function sendMessage(message, requiresAck = false) {
+    // Validate message structure
+    if (!message || typeof message !== 'object' || !message.type) {
+        console.error('Invalid message format:', message);
+        return null;
+    }
+
+    // Assign message ID for tracking
+    if (!message.messageId) {
+        message.messageId = `msg_${++messageIdCounter}_${Date.now()}`;
+    }
+
+    // Determine if this is a critical message
+    const criticalMessages = ['draft_action', 'start_draft', 'create_room', 'join_room'];
+    const isCritical = criticalMessages.includes(message.type);
+
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(message));
+        try {
+            // Add requiresAck flag if this is a critical message
+            if (isCritical) {
+                message.requiresAck = true;
+                requiresAck = true;
+            }
+
+            ws.send(JSON.stringify(message));
+            console.log('Sent message:', message.type, `(id: ${message.messageId})`);
+
+            // Track message if it requires acknowledgment
+            if (requiresAck) {
+                pendingMessages.set(message.messageId, message);
+                messageRetryAttempts.set(message.messageId, 0);
+
+                // Setup retry timeout (5 seconds)
+                setTimeout(() => retryMessage(message.messageId), 5000);
+            }
+
+            return message.messageId;
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            classifyAndHandleError(error, message);
+            queueMessage(message);
+            return null;
+        }
     } else {
-        console.error('WebSocket not connected');
-        showNotification('Not connected to server', 'error');
+        console.warn('WebSocket not connected, queuing message');
+
+        // Show appropriate notification based on message criticality
+        if (isCritical) {
+            showNotification('Not connected to server. Reconnecting...', 'error');
+        }
+
+        queueMessage(message);
+        return null;
+    }
+}
+
+/**
+ * Retry sending a message that wasn't acknowledged
+ */
+function retryMessage(messageId) {
+    if (!pendingMessages.has(messageId)) {
+        return; // Message was already acknowledged
+    }
+
+    const message = pendingMessages.get(messageId);
+    const attempts = messageRetryAttempts.get(messageId) || 0;
+
+    if (attempts >= maxMessageRetries) {
+        console.error(`Message retry limit reached for ${message.type} (id: ${messageId})`);
+        pendingMessages.delete(messageId);
+        messageRetryAttempts.delete(messageId);
+        showNotification(`Failed to send ${message.type}. Please try again.`, 'error');
+        return;
+    }
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(`Retrying message ${message.type} (id: ${messageId}), attempt ${attempts + 1}/${maxMessageRetries}`);
+        messageRetryAttempts.set(messageId, attempts + 1);
+
+        try {
+            ws.send(JSON.stringify(message));
+            // Setup another retry timeout
+            setTimeout(() => retryMessage(messageId), 5000 * (attempts + 1)); // Exponential backoff
+        } catch (error) {
+            console.error('Failed to retry message:', error);
+            pendingMessages.delete(messageId);
+            messageRetryAttempts.delete(messageId);
+        }
+    } else {
+        // Connection lost, queue the message
+        pendingMessages.delete(messageId);
+        messageRetryAttempts.delete(messageId);
+        queueMessage(message);
+    }
+}
+
+/**
+ * Classify network errors and handle appropriately
+ */
+function classifyAndHandleError(error, message) {
+    let errorType = 'unknown';
+    let userMessage = 'Network error occurred';
+
+    // Classify error type
+    if (error instanceof TypeError) {
+        errorType = 'network_error';
+        userMessage = 'Network connection issue';
+    } else if (error.name === 'InvalidStateError') {
+        errorType = 'connection_closed';
+        userMessage = 'Connection was closed';
+    } else if (error.name === 'SyntaxError') {
+        errorType = 'invalid_data';
+        userMessage = 'Invalid data format';
+    } else if (error.message && error.message.includes('timeout')) {
+        errorType = 'timeout';
+        userMessage = 'Connection timeout';
+    }
+
+    console.error(`Network error [${errorType}]:`, error, 'for message:', message?.type);
+
+    // Handle based on error type
+    switch (errorType) {
+        case 'network_error':
+        case 'connection_closed':
+        case 'timeout':
+            // These are recoverable - queue the message
+            if (message) {
+                queueMessage(message);
+            }
+            // Trigger reconnection if not already attempting
+            if (isMultiplayerMode && !isReconnecting && ws?.readyState !== WebSocket.OPEN) {
+                scheduleReconnect();
+            }
+            break;
+
+        case 'invalid_data':
+            // This is not recoverable - log and notify
+            showNotification('Invalid message format', 'error');
+            break;
+
+        default:
+            // Unknown error - queue and notify
+            if (message) {
+                queueMessage(message);
+            }
+            showNotification(userMessage, 'warning');
     }
 }
 
@@ -498,8 +994,20 @@ function updateConnectionStatus(connected) {
             statusElement.textContent = 'Connected';
             statusElement.className = 'connection-status connected';
         } else {
-            statusElement.textContent = 'Disconnected';
-            statusElement.className = 'connection-status disconnected';
+            // Show more detailed status based on connection state
+            switch (connectionState) {
+                case 'connecting':
+                    statusElement.textContent = 'Connecting...';
+                    statusElement.className = 'connection-status connecting';
+                    break;
+                case 'reconnecting':
+                    statusElement.textContent = `Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
+                    statusElement.className = 'connection-status reconnecting';
+                    break;
+                default:
+                    statusElement.textContent = 'Disconnected';
+                    statusElement.className = 'connection-status disconnected';
+            }
         }
     }
 }
@@ -621,13 +1129,46 @@ export function getGameState() {
  * Leave room and disconnect
  */
 export function leaveRoom() {
+    // Stop reconnection attempts
+    isMultiplayerMode = false;
+    isReconnecting = false;
+
+    // Clear timeouts and intervals
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+    }
+    if (onlineStatusCheckInterval) {
+        clearInterval(onlineStatusCheckInterval);
+        onlineStatusCheckInterval = null;
+    }
+    stopHeartbeat();
+
+    // Close WebSocket
     if (ws) {
         ws.close();
         ws = null;
     }
+
+    // Reset all state
     currentRoomCode = null;
     currentTeam = null;
-    isMultiplayerMode = false;
+    reconnectAttempts = 0;
+    messageQueue = [];
+    connectionState = 'disconnected';
+    reconnectDelayMultiplier = 1;
+
+    // Clear tracking maps
+    pendingMessages.clear();
+    messageRetryAttempts.clear();
+
+    // Reset latency tracking
+    lastPingTime = 0;
+    lastPongTime = 0;
+    averageLatency = 0;
+    latencyHistory = [];
+
+    updateConnectionStatus(false);
 }
 
 /**

@@ -4,3 +4,6 @@
 4. ✓ Make it so the Names are displayed in the draft screen instead of pick 1, same order as the Role List
 5. ✓ Fearless doesnt work when selected
 6. ✓ The New Draft button doesnt do anything in Multiplayer
+7. ✓ Fix Pick Order, right now it isnt the one like in league
+8. ✓ Display names more consistent
+9. ✓ Fix net code to be more robust

@@ -10,7 +10,10 @@
       "Bash(findstr:*)",
       "Bash(taskkill:*)",
       "Bash(del nul)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:leagueoflegends.fandom.com)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

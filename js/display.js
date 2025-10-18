@@ -1,5 +1,5 @@
 // --- TEAM DISPLAY LOGIC ---
-import { getRandomizerMode, getAllRoles } from './state.js';
+import { getRandomizerMode, getAllRoles, getTeamAssignments } from './state.js';
 import { solveRoleAssignment } from './randomizer.js';
 
 /**
@@ -48,11 +48,18 @@ export function displayTeams(team1, team2) {
         // Use DocumentFragment for better performance
         const fragment = document.createDocumentFragment();
 
+        // Get saved team assignments (calculated in app.js)
+        const teamAssignments = getTeamAssignments();
+
         if (mode === '5man') {
-            fragment.appendChild(createTeamElement('Team', 'team-1', team1));
+            fragment.appendChild(createTeamElement('Team', 'team-1', team1, null));
         } else {
-            fragment.appendChild(createTeamElement('Team 1', 'team-1', team1));
-            fragment.appendChild(createTeamElement('Team 2', 'team-2', team2));
+            // Pass the saved role assignments to avoid recalculating
+            const blueTeamRoles = teamAssignments ? teamAssignments.blueTeam : null;
+            const redTeamRoles = teamAssignments ? teamAssignments.redTeam : null;
+
+            fragment.appendChild(createTeamElement('Team 1', 'team-1', team1, blueTeamRoles));
+            fragment.appendChild(createTeamElement('Team 2', 'team-2', team2, redTeamRoles));
         }
 
         teamsContainer.appendChild(fragment);
@@ -67,16 +74,21 @@ export function displayTeams(team1, team2) {
  * @param {string} title - Team title
  * @param {string} id - Team element ID
  * @param {Array} players - Array of player objects
+ * @param {Map|null} roleAssignments - Pre-calculated role assignments (if available)
  * @returns {HTMLElement} - Team div element
  */
-function createTeamElement(title, id, players) {
+function createTeamElement(title, id, players, roleAssignments = null) {
     const teamDiv = document.createElement('div');
     teamDiv.className = 'team';
     teamDiv.id = id;
     teamDiv.innerHTML = `<h2>${title}</h2>`;
 
     const playerList = document.createElement('ul');
-    const roleAssignments = solveRoleAssignment(players);
+
+    // Use provided role assignments, or calculate if not provided
+    if (!roleAssignments) {
+        roleAssignments = solveRoleAssignment(players);
+    }
 
     if (roleAssignments) {
         renderPlayersWithRoles(playerList, players, roleAssignments);

@@ -21,8 +21,11 @@ A web application for creating randomized League of Legends teams with role assi
 - 👁️ **Spectator Mode** - Watch drafts without participating
 - 🏆 **Tournament Draft** - Full ban/pick phase with proper draft order
 - 💪 **Fearless Draft** - Optional mode preventing champion reuse across matches
-- 🔌 **Auto-Reconnect** - Automatic reconnection on disconnect
+- 🔌 **Robust Networking** - Automatic reconnection with smart state synchronization
+- 🎬 **Animation Control** - Animations only play for live actions, not on reconnect
 - 📊 **Live Updates** - See opponent picks and bans in real-time
+- 🔔 **Connection Monitoring** - Ping/pong heartbeat with latency tracking
+- 💾 **State Recovery** - Seamlessly rejoin ongoing drafts without disruption
 
 ## Quick Start
 
@@ -183,9 +186,14 @@ No build step required! Just refresh the browser after changes.
 - Fearless Draft session management
 
 ### Client-Side (js/multiplayer.js)
-- WebSocket connection management
-- Auto-reconnect on disconnect
-- Real-time UI updates
+- WebSocket connection management with exponential backoff
+- Smart reconnection that preserves team assignments
+- State synchronization distinguishing live updates from reconnects
+- Animation suppression during state sync for smooth reconnection
+- Heartbeat monitoring with ping/pong and latency tracking
+- Message queuing and retry logic for reliability
+- Online/offline detection with automatic recovery
+- Real-time UI updates with visual feedback
 - Room status notifications
 - Team switching logic
 
@@ -196,21 +204,25 @@ No build step required! Just refresh the browser after changes.
 **Client → Server**:
 - `create_room` - Create a new draft room
 - `join_room` - Join an existing room
+- `rejoin_room` - Rejoin a room after disconnect (preserves team)
 - `start_draft` - Start the draft (host only)
 - `draft_action` - Make a pick or ban
 - `switch_team` - Switch between teams or spectator
 - `toggle_fearless` - Enable/disable Fearless Draft (host only)
 - `reset_fearless` - Reset Fearless Draft session (host only)
+- `ping` - Heartbeat ping for connection monitoring
 
 **Server → Client**:
 - `room_created` - Room created successfully
-- `room_joined` - Successfully joined room
+- `room_joined` - Successfully joined room (includes full state sync)
 - `opponent_joined` - Opponent joined the room
 - `draft_started` - Draft has started
-- `draft_update` - Draft state updated
+- `draft_update` - Draft state updated (live action)
 - `team_switched` - Team switch confirmed
 - `fearless_toggled` - Fearless mode toggled
 - `room_update` - Player list updated
+- `player_disconnected` - A player disconnected from the room
+- `pong` - Heartbeat response with timestamp
 - `error` - Error message
 
 ---

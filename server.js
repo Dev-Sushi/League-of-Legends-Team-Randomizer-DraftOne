@@ -41,8 +41,8 @@ const DRAFT_ORDER = [
     // Pick Phase 2 (4 picks total)
     { team: 'red', action: 'pick' },
     { team: 'blue', action: 'pick' },
-    { team: 'red', action: 'pick' },
-    { team: 'blue', action: 'pick' }
+    { team: 'blue', action: 'pick' },
+    { team: 'red', action: 'pick' }
 ];
 
 const rooms = {};
@@ -347,6 +347,92 @@ wss.on('connection', (ws) => {
                         redTeamRoles: room.redTeamRoles,
                         spectators: room.spectators.map(s => s.name)
                     }));
+
+                    break;
+                }
+
+                case 'rejoin_room': {
+                    const roomCode = data.roomCode.toUpperCase();
+                    const room = rooms[roomCode];
+                    const requestedTeam = data.team; // 'blue', 'red', or 'spectator'
+                    const playerName = data.playerName || 'Player';
+
+                    if (!room) {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: 'Room not found'
+                        }));
+                        break;
+                    }
+
+                    let joinedTeam;
+                    const wasHost = ws === room.host;
+
+                    // Try to rejoin the requested team
+                    if (requestedTeam === 'blue' && !room.bluePlayer) {
+                        room.bluePlayer = ws;
+                        room.bluePlayerName = playerName;
+                        joinedTeam = 'blue';
+                        currentRoom = room;
+                        currentTeam = 'blue';
+
+                        // Restore host status if they were the host
+                        if (!room.host) {
+                            room.host = ws;
+                        }
+
+                        console.log(`${playerName} rejoined room ${roomCode} (blue team)`);
+                    } else if (requestedTeam === 'red' && !room.redPlayer) {
+                        room.redPlayer = ws;
+                        room.redPlayerName = playerName;
+                        joinedTeam = 'red';
+                        currentRoom = room;
+                        currentTeam = 'red';
+
+                        console.log(`${playerName} rejoined room ${roomCode} (red team)`);
+                    } else if (requestedTeam === 'spectator') {
+                        room.spectators.push({ ws, name: playerName });
+                        joinedTeam = 'spectator';
+                        currentRoom = room;
+                        currentTeam = 'spectator';
+
+                        console.log(`${playerName} rejoined room ${roomCode} (spectator)`);
+                    } else {
+                        // Requested team is occupied, join as spectator
+                        room.spectators.push({ ws, name: playerName });
+                        joinedTeam = 'spectator';
+                        currentRoom = room;
+                        currentTeam = 'spectator';
+
+                        console.log(`${playerName} rejoined room ${roomCode} as spectator (${requestedTeam} team occupied)`);
+                    }
+
+                    cancelRoomCleanup(roomCode);
+
+                    // Notify the rejoining player
+                    ws.send(JSON.stringify({
+                        type: 'room_joined',
+                        roomCode: roomCode,
+                        team: joinedTeam,
+                        isHost: ws === room.host,
+                        draftState: room.draftState,
+                        fearlessDraftEnabled: room.fearlessDraftEnabled,
+                        bluePlayerName: room.bluePlayerName,
+                        redPlayerName: room.redPlayerName,
+                        blueTeamRoles: room.blueTeamRoles,
+                        redTeamRoles: room.redTeamRoles,
+                        spectators: room.spectators.map(s => s.name)
+                    }));
+
+                    // Notify other players
+                    broadcastToRoom(room, {
+                        type: 'room_update',
+                        bluePlayerName: room.bluePlayerName,
+                        redPlayerName: room.redPlayerName,
+                        spectators: room.spectators.map(s => s.name),
+                        blueTeamRoles: room.blueTeamRoles,
+                        redTeamRoles: room.redTeamRoles
+                    }, ws);
 
                     break;
                 }

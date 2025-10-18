@@ -64,6 +64,20 @@ function findChampion(name) {
 }
 
 /**
+ * Get role icon emoji or symbol
+ */
+function getRoleIcon(role) {
+    const roleIcons = {
+        'TOP': '⚔️',
+        'JGL': '🌲',
+        'MID': '✨',
+        'ADC': '🎯',
+        'SUP': '🛡️'
+    };
+    return roleIcons[role] || '';
+}
+
+/**
  * Initializes the champion search functionality
  */
 function initializeChampionSearch() {
@@ -235,8 +249,10 @@ function advanceDraft() {
 
 /**
  * Updates the draft UI based on the current game state
+ * @param {Object} newGameState - New game state from server (optional)
+ * @param {boolean} isSync - True if this is a state sync (no animations), false for live updates
  */
-export function updateDraftUI(newGameState = null) {
+export function updateDraftUI(newGameState = null, isSync = false) {
     // If new state provided (from multiplayer), merge it
     if (newGameState) {
         gameState = { ...gameState, ...newGameState };
@@ -255,16 +271,19 @@ export function updateDraftUI(newGameState = null) {
     body.classList.remove('blue-turn', 'red-turn', 'my-turn', 'opponent-turn', 'spectator-mode');
     championGrid.classList.remove('picking', 'banning');
 
-    // Add animation classes for visual feedback
-    statusElement.classList.remove('draft-status-text-update');
-    phaseElement.classList.remove('draft-phase-update');
+    // Only add animation classes if this is a live update (not a sync/reconnect)
+    if (!isSync) {
+        // Add animation classes for visual feedback
+        statusElement.classList.remove('draft-status-text-update');
+        phaseElement.classList.remove('draft-phase-update');
 
-    // Trigger reflow to restart animation
-    void statusElement.offsetWidth;
-    void phaseElement.offsetWidth;
+        // Trigger reflow to restart animation
+        void statusElement.offsetWidth;
+        void phaseElement.offsetWidth;
 
-    statusElement.classList.add('draft-status-text-update');
-    phaseElement.classList.add('draft-phase-update');
+        statusElement.classList.add('draft-status-text-update');
+        phaseElement.classList.add('draft-phase-update');
+    }
 
     if (gameState.phase === 'complete') {
         statusElement.textContent = 'Draft Complete!';
@@ -317,19 +336,20 @@ export function updateDraftUI(newGameState = null) {
         phaseElement.textContent = 'IDLE';
     }
 
-    updateBanDisplay('blue', gameState.blueBans);
-    updateBanDisplay('red', gameState.redBans);
-    updatePickDisplay('blue', gameState.bluePicks);
-    updatePickDisplay('red', gameState.redPicks);
-    updateChampionGridAvailability();
+    updateBanDisplay('blue', gameState.blueBans, isSync);
+    updateBanDisplay('red', gameState.redBans, isSync);
+    updatePickDisplay('blue', gameState.bluePicks, isSync);
+    updatePickDisplay('red', gameState.redPicks, isSync);
+    updateChampionGridAvailability(isSync);
 }
 
 /**
  * Updates the ban display for a team
  * @param {string} team - 'blue' or 'red'
  * @param {string[]} bans - Array of banned champion names
+ * @param {boolean} skipAnimations - Whether to skip animations (for syncing)
  */
-function updateBanDisplay(team, bans) {
+function updateBanDisplay(team, bans, skipAnimations = false) {
     const banContainer = document.getElementById(`${team}-team-bans`);
     banContainer.innerHTML = '';
 
@@ -343,10 +363,20 @@ function updateBanDisplay(team, bans) {
             if (champ) {
                 banSlot.classList.add('filled');
 
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    banSlot.style.animation = 'none';
+                }
+
                 const img = document.createElement('img');
                 img.src = champ.image;
                 img.alt = champ.name;
                 img.className = 'ban-portrait';
+
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    img.style.animation = 'none';
+                }
 
                 img.onerror = () => {
                     console.error(`Failed to load ban image for ${champ.name}: ${champ.image}`);
@@ -356,6 +386,11 @@ function updateBanDisplay(team, bans) {
                 const banX = document.createElement('div');
                 banX.className = 'ban-x';
                 banX.textContent = '✕';
+
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    banX.style.animation = 'none';
+                }
 
                 banSlot.appendChild(img);
                 banSlot.appendChild(banX);
@@ -371,37 +406,47 @@ function updateBanDisplay(team, bans) {
 /**
  * Updates the pick display for a team
  * @param {string} team - 'blue' or 'red'
- * @param {string[]} picks - Array of picked champion names
+ * @param {string[]} picks - Array of picked champion names in pick order
+ * @param {boolean} skipAnimations - Whether to skip animations (for syncing)
  */
-function updatePickDisplay(team, picks) {
+function updatePickDisplay(team, picks, skipAnimations = false) {
     const pickContainer = document.getElementById(`${team}-team-picks`);
     pickContainer.innerHTML = '';
 
-    // Get team assignments to display player names
+    // Get role assignments from state
     const teamAssignments = getTeamAssignments();
-    const roleOrder = getAllRoles(); // ['TOP', 'JGL', 'MID', 'ADC', 'SUP']
+    const roles = getAllRoles(); // ['TOP', 'JGL', 'MID', 'ADC', 'SUP']
+
+    // Build arrays for player names and role labels for this team's picks
     let playerNames = [];
+    let roleLabels = [];
 
     if (teamAssignments) {
-        const teamKey = team === 'blue' ? 'blueTeam' : 'redTeam';
-        const roleAssignments = teamAssignments[teamKey];
+        const teamRoleMap = team === 'blue' ? teamAssignments.blueTeam : teamAssignments.redTeam;
 
-        if (roleAssignments) {
-            // roleAssignments is a Map of playerName -> role
-            // We need to invert it to get role -> playerName
+        if (teamRoleMap && teamRoleMap instanceof Map) {
+            // Create a map of role -> playerName from the playerName -> role Map
             const roleToPlayer = new Map();
-            for (const [playerName, role] of roleAssignments.entries()) {
+            for (const [playerName, role] of teamRoleMap.entries()) {
                 roleToPlayer.set(role, playerName);
             }
 
-            // Get player names in role order
-            roleOrder.forEach(role => {
-                const playerName = roleToPlayer.get(role);
-                if (playerName) {
-                    playerNames.push(playerName);
+            // Build ordered arrays following standard role order
+            roles.forEach(role => {
+                if (roleToPlayer.has(role)) {
+                    playerNames.push(roleToPlayer.get(role));
+                    roleLabels.push(role);
                 }
             });
         }
+    }
+
+    // Fallback to generic labels if no role assignments available
+    if (roleLabels.length === 0) {
+        roleLabels = team === 'blue'
+            ? ['B1', 'B2', 'B3', 'B4', 'B5']
+            : ['R1', 'R2', 'R3', 'R4', 'R5'];
+        playerNames = Array(5).fill(null);
     }
 
     const maxPicks = 5;
@@ -414,6 +459,11 @@ function updatePickDisplay(team, picks) {
             if (champ) {
                 pickSlot.classList.add('filled');
 
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    pickSlot.style.animation = 'none';
+                }
+
                 const portraitContainer = document.createElement('div');
                 portraitContainer.className = 'pick-portrait-container';
 
@@ -421,6 +471,11 @@ function updatePickDisplay(team, picks) {
                 img.src = champ.image;
                 img.alt = champ.name;
                 img.className = 'pick-portrait';
+
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    img.style.animation = 'none';
+                }
 
                 img.onerror = () => {
                     console.error(`Failed to load pick image for ${champ.name}: ${champ.image}`);
@@ -434,13 +489,40 @@ function updatePickDisplay(team, picks) {
                 champName.className = 'pick-champ-name';
                 champName.textContent = champ.name;
 
+                // Skip animations when syncing state
+                if (skipAnimations) {
+                    champName.style.animation = 'none';
+                }
+
+                // Show player name if available
+                const playerNameDiv = document.createElement('div');
+                playerNameDiv.className = 'pick-player-name';
+                if (playerNames[i]) {
+                    playerNameDiv.textContent = playerNames[i];
+                } else {
+                    playerNameDiv.textContent = '';
+                }
+
                 const position = document.createElement('div');
                 position.className = 'pick-position';
-                // Display player name if available, otherwise show Pick number
-                position.textContent = (playerNames.length > i) ? playerNames[i] : `Pick ${i + 1}`;
+
+                // Add role icon if role label is available
+                if (roleLabels[i] && roles.includes(roleLabels[i])) {
+                    const roleIconDiv = document.createElement('div');
+                    roleIconDiv.className = 'pick-role-icon-container';
+                    roleIconDiv.innerHTML = `
+                        <div class="role-button" data-role="${roleLabels[i]}">
+                            <div class="role-icon"></div>
+                        </div>
+                    `;
+                    position.appendChild(roleIconDiv);
+                } else {
+                    position.textContent = roleLabels[i] || `${team === 'blue' ? 'B' : 'R'}${i + 1}`;
+                }
 
                 pickSlot.appendChild(portraitContainer);
                 pickSlot.appendChild(champName);
+                pickSlot.appendChild(playerNameDiv);
                 pickSlot.appendChild(position);
             }
         } else {
@@ -449,12 +531,34 @@ function updatePickDisplay(team, picks) {
             const emptyContainer = document.createElement('div');
             emptyContainer.className = 'pick-portrait-container empty-portrait';
 
+            // Show player name even for empty slots
+            const playerNameDiv = document.createElement('div');
+            playerNameDiv.className = 'pick-player-name';
+            if (playerNames[i]) {
+                playerNameDiv.textContent = playerNames[i];
+            } else {
+                playerNameDiv.textContent = '';
+            }
+
             const position = document.createElement('div');
             position.className = 'pick-position';
-            // Display player name if available, otherwise show Pick number
-            position.textContent = (playerNames.length > i) ? playerNames[i] : `Pick ${i + 1}`;
+
+            // Add role icon if role label is available
+            if (roleLabels[i] && roles.includes(roleLabels[i])) {
+                const roleIconDiv = document.createElement('div');
+                roleIconDiv.className = 'pick-role-icon-container';
+                roleIconDiv.innerHTML = `
+                    <div class="role-button" data-role="${roleLabels[i]}">
+                        <div class="role-icon"></div>
+                    </div>
+                `;
+                position.appendChild(roleIconDiv);
+            } else {
+                position.textContent = roleLabels[i] || `${team === 'blue' ? 'B' : 'R'}${i + 1}`;
+            }
 
             pickSlot.appendChild(emptyContainer);
+            pickSlot.appendChild(playerNameDiv);
             pickSlot.appendChild(position);
         }
 
@@ -464,8 +568,9 @@ function updatePickDisplay(team, picks) {
 
 /**
  * Updates champion grid to show availability
+ * @param {boolean} skipAnimations - Whether to skip animations when marking as banned/picked
  */
-function updateChampionGridAvailability() {
+function updateChampionGridAvailability(skipAnimations = false) {
     const allBans = [...gameState.blueBans, ...gameState.redBans];
     const allPicks = [...gameState.bluePicks, ...gameState.redPicks];
     const unavailable = new Set([...allBans, ...allPicks]);
@@ -480,8 +585,33 @@ function updateChampionGridAvailability() {
         const championName = card.dataset.champion;
         if (unavailable.has(championName)) {
             card.classList.add('disabled');
+
+            // In multiplayer mode, mark cards as banned/picked without animation during sync
+            if (draftMode === 'multiplayer') {
+                const isBanned = allBans.includes(championName);
+                const isPicked = allPicks.includes(championName);
+
+                if (isBanned && !card.classList.contains('banned')) {
+                    card.classList.add('banned');
+                    if (skipAnimations) {
+                        card.style.animation = 'none';
+                        // Also disable pseudo-element animations
+                        card.style.setProperty('--skip-ban-animation', '1');
+                    }
+                } else if (isPicked && !card.classList.contains('picked')) {
+                    card.classList.add('picked');
+                    if (skipAnimations) {
+                        card.style.animation = 'none';
+                        // Also disable pseudo-element animations
+                        card.style.setProperty('--skip-pick-animation', '1');
+                    }
+                }
+            }
         } else {
-            card.classList.remove('disabled');
+            card.classList.remove('disabled', 'banned', 'picked');
+            card.style.animation = '';
+            card.style.removeProperty('--skip-ban-animation');
+            card.style.removeProperty('--skip-pick-animation');
         }
     });
 }
@@ -526,12 +656,12 @@ export async function initializeDraft(mode = 'solo', team = null) {
 
     // Setup multiplayer callbacks if in multiplayer mode
     if (mode === 'multiplayer') {
-        Multiplayer.onDraftUpdate((newState, playerTeam) => {
+        Multiplayer.onDraftUpdate((newState, playerTeam, isSync = false) => {
             myTeam = playerTeam;
-            updateDraftUI(newState);
+            updateDraftUI(newState, isSync);
 
-            // Play sound effects for opponent's actions
-            if (newState.currentTeam !== playerTeam) {
+            // Only play sound effects for live updates, not syncs/reconnects
+            if (!isSync && newState.currentTeam !== playerTeam) {
                 const lastAction = newState.currentAction;
                 if (lastAction === 'ban' || lastAction === 'pick') {
                     const soundTeam = newState.currentTeam === 'blue' ? 'red' : 'blue';

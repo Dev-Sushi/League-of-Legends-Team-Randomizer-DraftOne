@@ -36,16 +36,19 @@ function runRandomization() {
         const midPoint = Math.ceil(shuffledPlayers.length / 2);
         const team1 = shuffledPlayers.slice(0, midPoint);
         const team2 = shuffledPlayers.slice(midPoint);
-        displayTeams(team1, team2);
 
-        // Save team assignments with role assignments for draft screen
+        // Calculate role assignments ONCE to use in both display and draft
         const team1RoleAssignments = solveRoleAssignment(team1);
         const team2RoleAssignments = solveRoleAssignment(team2);
 
+        // Save team assignments for draft screen FIRST
         setTeamAssignments({
             blueTeam: team1RoleAssignments,
             redTeam: team2RoleAssignments
         });
+
+        // Then display teams (display.js will use the saved assignments)
+        displayTeams(team1, team2);
 
         return true;
     }
