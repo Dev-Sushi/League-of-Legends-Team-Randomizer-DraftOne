@@ -1,6 +1,8 @@
 // --- MULTIPLAYER MODULE ---
 // Handles WebSocket connection and multiplayer draft synchronization
 
+import * as Draft from './draft.js';
+
 let ws = null;
 let currentRoomCode = null;
 let currentTeam = null;
@@ -260,6 +262,7 @@ function handleServerMessage(data) {
                     };
                 }
             }
+            Draft.updateFearlessDraftToggle();
             break;
 
         case 'room_joined':
@@ -312,6 +315,7 @@ function handleServerMessage(data) {
             } else {
                 console.log('No role assignments in room_joined message (both null)');
             }
+            Draft.updateFearlessDraftToggle();
             break;
 
         case 'opponent_joined':

@@ -739,15 +739,6 @@ function initializeFearlessDraft() {
     fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
     fearlessResetBtn.classList.toggle('hidden', !fearlessDraftEnabled);
 
-    // Disable toggle in multiplayer if not host
-    if (draftMode === 'multiplayer') {
-        const isHost = Multiplayer.getIsHost();
-        if (!isHost) {
-            fearlessToggle.disabled = true;
-            fearlessResetBtn.disabled = true;
-        }
-    }
-
     fearlessToggle.addEventListener('change', (e) => {
         fearlessDraftEnabled = e.target.checked;
         fearlessLabel.classList.toggle('active', fearlessDraftEnabled);
@@ -778,6 +769,22 @@ function initializeFearlessDraft() {
         fearlessDraftEnabled = e.detail.enabled;
         updateChampionGridAvailability();
     });
+}
+
+export function updateFearlessDraftToggle() {
+    const fearlessToggle = document.getElementById('fearless-draft-checkbox');
+    const fearlessResetBtn = document.getElementById('reset-fearless-session-btn');
+    const isHost = Multiplayer.getIsHost();
+
+    if (draftMode === 'multiplayer') {
+        if (isHost) {
+            fearlessToggle.disabled = false;
+            fearlessResetBtn.disabled = false;
+        } else {
+            fearlessToggle.disabled = true;
+            fearlessResetBtn.disabled = true;
+        }
+    }
 }
 
 let roleFilterInitialized = false;
